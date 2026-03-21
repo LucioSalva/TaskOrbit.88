@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php:*)",
+      "Read(//c/laragon/bin/php//**)",
+      "Read(//c/laragon/usr/bin//**)",
+      "Read(//c/laragon/**)",
+      "Bash(/c/laragon/bin/php/php-8.3.30-Win32-vs16-x64/php.exe -r \"echo 'PHP version: ' . PHP_VERSION . PHP_EOL; echo 'PDO drivers: ' . implode\\(', ', PDO::getAvailableDrivers\\(\\)\\) . PHP_EOL; echo 'pdo_pgsql: ' . \\(extension_loaded\\('pdo_pgsql'\\) ? 'ENABLED' : 'DISABLED'\\) . PHP_EOL; echo 'pdo_mysql: ' . \\(extension_loaded\\('pdo_mysql'\\) ? 'ENABLED' : 'DISABLED'\\) . PHP_EOL;\")",
+      "Bash(/c/laragon/bin/php/php-8.3.30-Win32-vs16-x64/php.exe -r \"echo php_ini_loaded_file\\(\\);\")",
+      "Bash(ls /c/laragon/bin/php/php-8.3.30-Win32-vs16-x64/ext/php_pdo_pgsql*)",
+      "Bash(ls /c/laragon/bin/php/php-8.3.30-Win32-vs16-x64/libpq*)",
+      "Read(//c/Program Files/PostgreSQL//**)",
+      "Read(//c/Program Files \\(x86\\)/PostgreSQL//**)",
+      "Bash(ls /c/laragon/usr/share/postgresql*)",
+      "Bash(\"/c/Program Files/PostgreSQL/17/bin/psql.exe\" --version)",
+      "Bash(PGPASSWORD=admin \"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -c \"\\\\l\")",
+      "Bash(PGPASSWORD=admin \"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -d TaskOrbit -c \"\\\\dt\" 2>&1)",
+      "Bash(PGPASSWORD=admin \"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -d TaskOrbit -c \"SELECT id, username, activo FROM usuarios LIMIT 5;\" 2>&1)",
+      "Bash(/c/laragon/bin/php/php-8.3.30-Win32-vs16-x64/php.exe -r \"echo 'pdo_pgsql: ' . \\(extension_loaded\\('pdo_pgsql'\\) ? 'ENABLED' : 'DISABLED'\\) . PHP_EOL;\" 2>&1)",
+      "Bash(/c/laragon/bin/php/php-8.3.30-Win32-vs16-x64/php.exe -r \"\ntry {\n    \\\\$pdo = new PDO\\('pgsql:host=localhost;port=5432;dbname=TaskOrbit', 'postgres', 'admin'\\);\n    echo 'Conexion OK' . PHP_EOL;\n    \\\\$r = \\\\$pdo->query\\('SELECT count\\(*\\) FROM usuarios'\\);\n    echo 'Usuarios: ' . \\\\$r->fetchColumn\\(\\) . PHP_EOL;\n} catch\\(Exception \\\\$e\\) {\n    echo 'ERROR: ' . \\\\$e->getMessage\\(\\) . PHP_EOL;\n}\" 2>&1)"
+    ]
+  }
+}

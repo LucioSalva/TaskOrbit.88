@@ -1,0 +1,14 @@
+Options -MultiViews
+RewriteEngine On
+
+# Ajusta RewriteBase si tu app no está en la raíz de Apache.
+# Ejemplo: si APP_URL = http://localhost/taskflow-php/public
+# descomenta la línea siguiente:
+RewriteBase /taskorbit/public/
+
+# Servir archivos y directorios reales directamente
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Todo lo demás va al front controller
+RewriteRule ^ index.php [QSA,L]
