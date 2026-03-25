@@ -17,7 +17,7 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
   <div>
     <h1 class="h4 fw-bold mb-0"><i class="bi bi-list-task me-2 text-primary"></i><?php echo $e($p['nombre']??'Tareas'); ?></h1>
     <div class="d-flex gap-2 mt-1">
-      <span class="badge badge-estado-<?php echo $e($p['estado']??''); ?>"><?php echo $e($estadoLabel[$p['estado']??'']??$p['estado']??''); ?></span>
+      <span id="proyecto-estado-badge" class="badge estado-badge badge-estado-<?php echo $e($p['estado']??''); ?>"><?php echo $e($estadoLabel[$p['estado']??'']??$p['estado']??''); ?></span>
       <span class="badge badge-prioridad-<?php echo $e($p['prioridad']??''); ?>"><?php echo ucfirst($e($p['prioridad']??'')); ?></span>
     </div>
   </div>
@@ -30,157 +30,89 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
 
 <?php if (empty($tareas)): ?>
 <div class="text-center py-5 text-muted">
-  <i class="bi bi-list-task display-4 mb-3 d-block"></i>
-  <h5>Sin tareas</h5>
+  <i class="bi bi-list-task display-4 mb-3 d-block opacity-50"></i>
+  <h5>Este proyecto aun no tiene tareas</h5>
+  <p class="small">Las tareas permiten dividir el trabajo del proyecto en pasos concretos y asignarlos a personas.</p>
   <?php if (in_array($role, ['ADMIN','GOD'])): ?>
-  <a href="<?php echo $appUrl; ?>/proyectos/<?php echo $e($p['id']??''); ?>/tareas/crear" class="btn btn-primary btn-sm mt-2">Agregar primera tarea</a>
+  <a href="<?php echo $appUrl; ?>/proyectos/<?php echo $e($p['id']??''); ?>/tareas/crear" class="btn btn-primary btn-sm mt-2">
+    <i class="bi bi-plus-lg me-1"></i>Crear la primera tarea
+  </a>
+  <?php else: ?>
+  <p class="small text-muted mt-2">Contacta a un administrador para agregar tareas a este proyecto.</p>
   <?php endif; ?>
 </div>
 <?php else: ?>
-<div class="accordion" id="tareasAccordion">
-  <?php foreach ($tareas as $idx => $tarea): ?>
-  <div class="card mb-3" data-tarea-id="<?php echo $e($tarea['id']); ?>">
-    <div class="card-header d-flex align-items-center justify-content-between gap-2 py-2">
-      <div class="d-flex align-items-center gap-2 flex-fill min-w-0">
-        <button class="btn btn-sm btn-outline-secondary p-1" type="button" data-bs-toggle="collapse" data-bs-target="#subtareas-<?php echo $e($tarea['id']); ?>">
-          <i class="bi bi-chevron-down" style="font-size:.75rem"></i>
-        </button>
-        <div class="min-w-0">
-          <div class="fw-semibold text-truncate"><?php echo $e($tarea['nombre']); ?></div>
-          <?php if($tarea['usuario_asignado_nombre']??''): ?>
-          <div class="text-muted" style="font-size:.75rem"><i class="bi bi-person me-1"></i><?php echo $e($tarea['usuario_asignado_nombre']); ?></div>
-          <?php endif; ?>
-        </div>
-      </div>
 
-      <div class="d-flex align-items-center gap-2 flex-shrink-0">
-        <span class="badge badge-prioridad-<?php echo $e($tarea['prioridad']); ?> d-none d-md-inline"><?php echo ucfirst($e($tarea['prioridad'])); ?></span>
+<!-- View Switcher -->
+<div id="vistas-container" data-page="tareas">
+  <ul class="nav nav-pills view-switcher mb-3">
+    <li class="nav-item"><a class="nav-link" href="#lista"    data-view="lista">   <i class="bi bi-list-ul me-1"></i><span>Lista</span></a></li>
+    <li class="nav-item"><a class="nav-link" href="#kanban"   data-view="kanban">  <i class="bi bi-kanban me-1"></i><span>Kanban</span></a></li>
+    <li class="nav-item"><a class="nav-link" href="#usuario"  data-view="usuario"> <i class="bi bi-people me-1"></i><span>Por Usuario</span></a></li>
+    <li class="nav-item"><a class="nav-link" href="#timeline" data-view="timeline"><i class="bi bi-clock-history me-1"></i><span>Timeline</span></a></li>
+  </ul>
+  <div class="vista-panel" data-vista="lista">
+    <?php include __DIR__ . '/_vista_lista.php'; ?>
+  </div>
+  <div class="vista-panel" data-vista="kanban" style="display:none">
+    <?php include __DIR__ . '/_vista_kanban.php'; ?>
+  </div>
+  <div class="vista-panel" data-vista="usuario" style="display:none">
+    <?php include __DIR__ . '/_vista_usuario.php'; ?>
+  </div>
+  <div class="vista-panel" data-vista="timeline" style="display:none">
+    <?php include __DIR__ . '/_vista_timeline.php'; ?>
+  </div>
+</div>
 
-        <?php if($tarea['fecha_fin']??''): ?>
-        <?php $isOverdue = \App\Helpers\DateHelper::isOverdue($tarea['fecha_fin'], $tarea['estado']); ?>
-        <small class="text-<?php echo $isOverdue?'danger':'muted'; ?> d-none d-lg-inline">
-          <i class="bi bi-calendar3 me-1"></i><?php echo \App\Helpers\DateHelper::formatDate($tarea['fecha_fin']); ?>
-        </small>
-        <?php endif; ?>
+<?php endif; ?>
 
-        <!-- Estado badge (visible) -->
-        <span class="badge estado-badge badge-estado-<?php echo $e($tarea['estado']); ?>">
-          <?php echo $e($estadoLabel[$tarea['estado']]??$tarea['estado']); ?>
-        </span>
+<?php if (!empty($usuarios)): ?>
+<script>
+var USUARIOS_ASIGNABLES = <?php echo json_encode(array_map(function($u) {
+    return ['id' => $u['id'], 'nombre_completo' => $u['nombre_completo'], 'rol' => $u['rol'] ?? ''];
+}, $usuarios)); ?>;
+</script>
+<?php else: ?>
+<script>var USUARIOS_ASIGNABLES = [];</script>
+<?php endif; ?>
 
-        <!-- Quick estado change -->
-        <div class="estado-btn-group btn-group btn-group-sm">
-          <?php foreach(['por_hacer'=>'PH','haciendo'=>'H','terminada'=>'T'] as $est=>$lbl): ?>
-          <form method="POST" action="<?php echo $appUrl; ?>/tareas/<?php echo $e($tarea['id']); ?>/estado" class="d-inline">
-            <?php echo \App\Helpers\CSRF::tokenField(); ?>
-            <input type="hidden" name="estado" value="<?php echo $e($est); ?>">
-            <button type="submit" class="btn btn-outline-secondary <?php echo $tarea['estado']===$est?'active-estado':''; ?>" title="<?php echo $e($estadoLabel[$est]); ?>">
-              <?php echo $e($lbl); ?>
-            </button>
-          </form>
-          <?php endforeach; ?>
-        </div>
-
-        <?php if (in_array($role, ['ADMIN','GOD'])): ?>
-        <a href="<?php echo $appUrl; ?>/tareas/<?php echo $e($tarea['id']); ?>/editar" class="btn btn-outline-warning btn-sm"><i class="bi bi-pencil"></i></a>
-        <button type="button" class="btn btn-outline-danger btn-sm"
-          data-delete-url="<?php echo $appUrl; ?>/tareas/<?php echo $e($tarea['id']); ?>/eliminar"
-          data-delete-title="¿Eliminar tarea?"
-          data-delete-msg="Se eliminarán las subtareas y notas asociadas."
-          data-show-reason="true">
-          <i class="bi bi-trash"></i>
-        </button>
-        <?php endif; ?>
-      </div>
-    </div>
-
-    <?php if($tarea['descripcion']??''): ?>
-    <div class="px-3 py-1 small text-muted border-bottom"><?php echo $e($tarea['descripcion']); ?></div>
-    <?php endif; ?>
-
-    <!-- Subtareas collapse -->
-    <div id="subtareas-<?php echo $e($tarea['id']); ?>" class="collapse show">
-      <div class="card-body pt-2 pb-2">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <span class="small fw-semibold text-muted">Subtareas (<?php echo count($tarea['subtareas']??[]); ?>)</span>
-          <?php if (in_array($role, ['ADMIN','GOD'])): ?>
-          <button class="btn btn-outline-primary btn-sm py-0 px-2" type="button" data-bs-toggle="collapse" data-bs-target="#form-subtarea-<?php echo $e($tarea['id']); ?>">
-            <i class="bi bi-plus-lg"></i> Agregar
-          </button>
-          <?php endif; ?>
-        </div>
-
-        <!-- Add subtarea form -->
-        <?php if (in_array($role, ['ADMIN','GOD'])): ?>
-        <div class="collapse mb-2" id="form-subtarea-<?php echo $e($tarea['id']); ?>">
-          <form method="POST" action="<?php echo $appUrl; ?>/tareas/<?php echo $e($tarea['id']); ?>/subtareas" class="card card-body py-2 bg-light">
-            <?php echo \App\Helpers\CSRF::tokenField(); ?>
-            <div class="row g-2">
-              <div class="col-12 col-md-6">
-                <input type="text" name="nombre" class="form-control form-control-sm" placeholder="Nombre de subtarea *" required minlength="3">
-              </div>
-              <div class="col-6 col-md-3">
-                <select name="prioridad" class="form-select form-select-sm">
-                  <option value="baja">Baja</option>
-                  <option value="media" selected>Media</option>
-                  <option value="alta">Alta</option>
-                  <option value="critica">Crítica</option>
-                </select>
-              </div>
-              <div class="col-6 col-md-3">
-                <button type="submit" class="btn btn-primary btn-sm w-100">Agregar</button>
-              </div>
-              <div class="col-12">
-                <textarea name="descripcion" class="form-control form-control-sm" rows="2" placeholder="Notas informativas (opcional)"></textarea>
-              </div>
-            </div>
-          </form>
-        </div>
-        <?php endif; ?>
-
-        <!-- Subtareas list -->
-        <?php if (empty($tarea['subtareas'])): ?>
-        <div class="text-muted small py-2">Sin subtareas.</div>
-        <?php else: ?>
-        <?php foreach ($tarea['subtareas'] as $sub): ?>
-        <div class="subtarea-item <?php echo $sub['estado']==='terminada'?'terminada':''; ?>" data-subtarea-id="<?php echo $e($sub['id']); ?>">
-          <div class="d-flex align-items-center gap-2">
-            <div class="flex-fill">
-              <span class="subtarea-nombre small fw-medium"><?php echo $e($sub['nombre']); ?></span>
-              <?php if($sub['descripcion']??''): ?>
-              <div class="text-muted" style="font-size:.75rem"><?php echo $e($sub['descripcion']); ?></div>
-              <?php endif; ?>
-            </div>
-            <div class="d-flex align-items-center gap-1 flex-shrink-0">
-              <span class="badge estado-badge badge-estado-<?php echo $e($sub['estado']); ?>" style="font-size:.7rem">
-                <?php echo $e($estadoLabel[$sub['estado']]??$sub['estado']); ?>
-              </span>
-              <!-- Quick subtarea estado -->
-              <div class="btn-group btn-group-sm">
-                <?php foreach(['por_hacer'=>'PH','haciendo'=>'H','terminada'=>'T'] as $est=>$lbl): ?>
-                <form method="POST" action="<?php echo $appUrl; ?>/subtareas/<?php echo $e($sub['id']); ?>/estado" class="d-inline">
-                  <?php echo \App\Helpers\CSRF::tokenField(); ?>
-                  <input type="hidden" name="estado" value="<?php echo $e($est); ?>">
-                  <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1 <?php echo $sub['estado']===$est?'active-estado':''; ?>" title="<?php echo $e($estadoLabel[$est]); ?>" style="font-size:.7rem">
-                    <?php echo $e($lbl); ?>
-                  </button>
-                </form>
-                <?php endforeach; ?>
-              </div>
-              <?php if (in_array($role, ['ADMIN','GOD'])): ?>
-              <form method="POST" action="<?php echo $appUrl; ?>/subtareas/<?php echo $e($sub['id']); ?>/eliminar" class="d-inline">
-                <?php echo \App\Helpers\CSRF::tokenField(); ?>
-                <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1" title="Eliminar"><i class="bi bi-x"></i></button>
-              </form>
-              <?php endif; ?>
-            </div>
-          </div>
-        </div>
-        <?php endforeach; ?>
-        <?php endif; ?>
+<!-- Notas / Bitácora del Proyecto -->
+<div class="mt-4">
+  <button class="btn btn-outline-secondary btn-sm w-100 text-start d-flex align-items-center gap-2 mb-2"
+          type="button" data-bs-toggle="collapse" data-bs-target="#panel-notas-proyecto"
+          aria-expanded="false">
+    <i class="bi bi-journal-text text-primary"></i>
+    <span>Bitácora del Proyecto</span>
+    <i class="bi bi-chevron-down ms-auto"></i>
+  </button>
+  <div class="collapse" id="panel-notas-proyecto">
+    <div class="card">
+      <div class="card-body py-3">
+        <?php
+        $notasScope      = 'proyecto';
+        $notasRefId      = (int)($p['id'] ?? 0);
+        $notas           = [];
+        $notasLazy       = true;
+        $notasCanWrite   = true;
+        $notasRole       = $role;
+        $notasUserId     = (int)($user['id'] ?? 0);
+        $notasPanelTitle = 'Bitácora del Proyecto';
+        include __DIR__ . '/../partials/_notas_panel.php';
+        ?>
       </div>
     </div>
   </div>
-  <?php endforeach; ?>
 </div>
-<?php endif; ?>
+<script>
+(function() {
+  var collapseEl = document.getElementById('panel-notas-proyecto');
+  if (!collapseEl) return;
+  collapseEl.addEventListener('show.bs.collapse', function() {
+    var panelEl = collapseEl.querySelector('.notas-panel');
+    if (panelEl && typeof loadLazyNotasPanel === 'function') {
+      loadLazyNotasPanel(panelEl);
+    }
+  }, { once: true });
+})();
+</script>

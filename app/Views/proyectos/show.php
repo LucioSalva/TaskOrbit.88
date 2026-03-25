@@ -19,8 +19,22 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
       <div>
         <h1 class="h3 fw-bold mb-1"><?php echo $e($p['nombre']??''); ?></h1>
         <div class="d-flex align-items-center gap-2 flex-wrap">
-          <span class="badge badge-estado-<?php echo $e($p['estado']??''); ?>"><?php echo $e($estadoLabel[$p['estado']??'']??$p['estado']??''); ?></span>
+          <?php
+          $estadoTooltips = [
+            'por_hacer' => 'Pendiente de iniciar',
+            'haciendo'  => 'En progreso activo',
+            'terminada' => 'Completada, pendiente de revision',
+            'enterado'  => 'Notificado / visto',
+            'ocupado'   => 'En pausa por otro trabajo',
+            'aceptada'  => 'Revisada y aprobada',
+          ];
+          ?>
+          <span class="badge badge-estado-<?php echo $e($p['estado']??''); ?>"
+                data-bs-toggle="tooltip" title="<?php echo $e($estadoTooltips[$p['estado']??''] ?? ''); ?>">
+            <?php echo $e($estadoLabel[$p['estado']??'']??$p['estado']??''); ?>
+          </span>
           <span class="badge badge-prioridad-<?php echo $e($p['prioridad']??''); ?>"><?php echo ucfirst($e($p['prioridad']??'')); ?></span>
+          <?php echo \App\Services\SemaforoService::badge($p['semaforo'] ?? 'neutral'); ?>
           <?php if($p['usuario_asignado_nombre']??''): ?>
           <span class="text-muted small"><i class="bi bi-person me-1"></i><?php echo $e($p['usuario_asignado_nombre']); ?></span>
           <?php endif; ?>
@@ -36,8 +50,9 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
         </a>
         <button type="button" class="btn btn-danger btn-sm"
           data-delete-url="<?php echo $appUrl; ?>/proyectos/<?php echo $e($p['id']); ?>/eliminar"
-          data-delete-title="¿Eliminar proyecto?"
-          data-delete-msg="Se eliminarán todas las tareas, subtareas y notas del proyecto."
+          data-delete-preview-url="<?php echo $appUrl; ?>/proyectos/<?php echo $e($p['id']); ?>/eliminar-preview"
+          data-delete-title="Eliminar proyecto &quot;<?php echo $e($p['nombre']); ?>&quot;?"
+          data-delete-msg="Se eliminaran TODAS las tareas, subtareas y notas del proyecto. Esta accion es irreversible."
           data-show-reason="true">
           <i class="bi bi-trash me-1"></i>Eliminar
         </button>
@@ -80,6 +95,11 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-notas">
       <i class="bi bi-sticky me-1"></i>Notas
       <span class="badge bg-secondary ms-1"><?php echo count($notas??[]); ?></span>
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-evidencias">
+      <i class="bi bi-paperclip me-1"></i>Evidencias
     </button>
   </li>
 </ul>
@@ -135,48 +155,27 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
 
   <!-- Notas Tab -->
   <div class="tab-pane fade" id="tab-notas">
-    <?php if (in_array($role, ['ADMIN','GOD','USER'])): ?>
-    <div class="card mb-3">
-      <div class="card-body">
-        <form method="POST" action="<?php echo $appUrl; ?>/notas">
-          <?php echo \App\Helpers\CSRF::tokenField(); ?>
-          <input type="hidden" name="scope" value="proyecto">
-          <input type="hidden" name="referencia_id" value="<?php echo $e($p['id']); ?>">
-          <div class="mb-2">
-            <input type="text" name="titulo" class="form-control form-control-sm" placeholder="Título (opcional)" maxlength="160">
-          </div>
-          <div class="mb-2">
-            <textarea name="contenido" class="form-control form-control-sm" rows="3" placeholder="Escribe una nota..." required></textarea>
-          </div>
-          <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-sticky me-1"></i>Agregar nota</button>
-        </form>
-      </div>
-    </div>
-    <?php endif; ?>
+    <?php
+    $notasScope      = 'proyecto';
+    $notasRefId      = (int)$p['id'];
+    $notasCanWrite   = true;
+    $notasRole       = $role;
+    $notasUserId     = (int)($user['id'] ?? 0);
+    $notasPanelTitle = 'Bitácora del Proyecto';
+    include __DIR__ . '/../partials/_notas_panel.php';
+    ?>
+  </div>
 
-    <?php if (empty($notas)): ?>
-    <div class="text-center py-4 text-muted"><p>Sin notas en este proyecto.</p></div>
-    <?php else: ?>
-    <?php foreach ($notas as $nota): ?>
-    <div class="card mb-2">
-      <div class="card-body py-2">
-        <?php if($nota['titulo']??''): ?><div class="fw-semibold small"><?php echo $e($nota['titulo']); ?></div><?php endif; ?>
-        <p class="mb-1 small"><?php echo nl2br($e($nota['contenido'])); ?></p>
-        <div class="d-flex align-items-center justify-content-between">
-          <small class="text-muted">
-            <i class="bi bi-person me-1"></i><?php echo $e($nota['autor_nombre']??''); ?>
-            &bull; <?php echo \App\Helpers\DateHelper::formatDatetime($nota['created_at']??''); ?>
-          </small>
-          <?php if ((int)($nota['user_id']??0) === (int)($user['id']??0)): ?>
-          <form method="POST" action="<?php echo $appUrl; ?>/notas/<?php echo $e($nota['id']); ?>/eliminar" class="d-inline">
-            <?php echo \App\Helpers\CSRF::tokenField(); ?>
-            <button type="submit" class="btn btn-link btn-sm text-danger p-0"><i class="bi bi-trash"></i></button>
-          </form>
-          <?php endif; ?>
-        </div>
-      </div>
-    </div>
-    <?php endforeach; ?>
-    <?php endif; ?>
+  <!-- Evidencias Tab -->
+  <div class="tab-pane fade" id="tab-evidencias">
+    <?php
+    $evidTipo             = 'proyecto';
+    $evidId               = (int)$p['id'];
+    $evidencias           = \App\Models\Evidencia::getByEntidad('proyecto', (int)$p['id']);
+    $evidCanUpload        = true;
+    $evidCanDelete        = in_array($role, ['GOD', 'ADMIN']);
+    $evidEntityTerminada  = ($p['estado'] ?? '') === 'terminada';
+    include __DIR__ . '/../partials/_evidencias_panel.php';
+    ?>
   </div>
 </div>

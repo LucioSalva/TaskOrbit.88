@@ -36,10 +36,33 @@ class CSRF
 
     public static function verifyRequest(): void
     {
-        $token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        $token = $_POST['csrf_token']
+               ?? $_SERVER['HTTP_X_CSRF_TOKEN']
+               ?? '';
+
         if (!self::validateToken($token)) {
+            $isAjax     = !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+                       && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+            $acceptsJson = isset($_SERVER['HTTP_ACCEPT'])
+                        && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json');
+            $sendsJson   = isset($_SERVER['CONTENT_TYPE'])
+                        && str_contains($_SERVER['CONTENT_TYPE'], 'application/json');
+
             http_response_code(419);
-            die('Token CSRF inválido. Por favor recarga la página e intenta de nuevo.');
+
+            if ($isAjax || $acceptsJson || $sendsJson) {
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode([
+                    'ok'      => false,
+                    'error'   => 'csrf_expired',
+                    'message' => 'La sesión expiró. Recarga la página e intenta de nuevo.',
+                ]);
+            } else {
+                echo '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>';
+                echo '<p>Token de seguridad inválido. <a href="javascript:history.back()">Volver</a> y recargar la página.</p>';
+                echo '</body></html>';
+            }
+            exit;
         }
     }
 

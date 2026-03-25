@@ -1,4 +1,39 @@
 <?php
+/**
+ * ================================================================
+ *  TASKORBIT
+ *  Humberto Salvador Ruiz Lucio
+ * ================================================================
+ *  Plataforma privada de gestión de proyectos, tareas,
+ *  subtareas, procesos y colaboración interna.
+ *
+ *  Módulo: Modelos de Datos
+ *  Archivo: Proyecto.php
+ *
+ *  © 2025–2026 Humberto Salvador Ruiz Lucio.
+ *  Todos los derechos reservados.
+ *
+ *  PROPIEDAD INTELECTUAL Y CONFIDENCIALIDAD:
+ *  El presente código fuente, su estructura lógica,
+ *  funcionalidad, arquitectura, diseño de datos,
+ *  documentación y componentes asociados forman parte
+ *  de un sistema propietario y confidencial.
+ *
+ *  Queda prohibida su copia, reproducción, distribución,
+ *  adaptación, descompilación, comercialización,
+ *  divulgación o utilización no autorizada, total o parcial,
+ *  por cualquier medio, sin el consentimiento previo
+ *  y por escrito de su titular.
+ *
+ *  El uso no autorizado de este software podrá dar lugar
+ *  a las acciones legales civiles, mercantiles, administrativas
+ *  o penales correspondientes conforme a la legislación aplicable
+ *  en los Estados Unidos Mexicanos.
+ *
+ *  Uso interno exclusivo.
+ *  Documento/código confidencial.
+ * ================================================================
+ */
 declare(strict_types=1);
 
 namespace App\Models;
@@ -18,7 +53,8 @@ class Proyecto
             $sql .= ' AND usuario_asignado_id = ?';
             $params[] = $userId;
         } elseif ($role === 'ADMIN') {
-            $sql .= ' AND created_by = ?';
+            $sql .= ' AND (created_by = ? OR usuario_asignado_id = ?)';
+            $params[] = $userId;
             $params[] = $userId;
         }
 
@@ -56,32 +92,47 @@ class Proyecto
                 $data['fecha_fin'] ?? null
             );
 
+            $params = [
+                $data['nombre'],
+                isset($data['descripcion']) && $data['descripcion'] !== '' ? $data['descripcion'] : null,
+                $data['prioridad'] ?? 'media',
+                $data['estado'] ?? 'por_hacer',
+                (isset($data['fecha_inicio']) && $data['fecha_inicio'] !== '') ? $data['fecha_inicio'] : null,
+                (isset($data['fecha_fin']) && $data['fecha_fin'] !== '') ? $data['fecha_fin'] : null,
+                $estimacion,
+                (int)$data['usuario_asignado_id'],
+                $createdBy,
+            ];
+
+            error_log('[Proyecto::create] SQL params: ' . json_encode($params));
+
             $stmt = $db->query(
                 'INSERT INTO proyectos
                    (nombre, descripcion, prioridad, estado, fecha_inicio, fecha_fin,
                     estimacion_minutos, usuario_asignado_id, created_by)
                  VALUES (?,?,?,?,?,?,?,?,?) RETURNING id',
-                [
-                    $data['nombre'],
-                    $data['descripcion'] ?? null,
-                    $data['prioridad'] ?? 'media',
-                    $data['estado'] ?? 'por_hacer',
-                    $data['fecha_inicio'] ?: null,
-                    $data['fecha_fin'] ?: null,
-                    $estimacion,
-                    $data['usuario_asignado_id'],
-                    $createdBy,
-                ]
+                $params
             );
-            $id = (int)$stmt->fetchColumn();
+            $raw = $stmt->fetchColumn();
+            $id  = (int)$raw;
 
-            self::logAudit($createdBy, 'PROYECTO_CREATE', $id, $data);
+            error_log('[Proyecto::create] RETURNING id raw=' . var_export($raw, true) . ' cast=' . $id);
+
+            if ($id <= 0) {
+                throw new \RuntimeException('INSERT proyectos no retornó un ID válido (got: ' . var_export($raw, true) . ')');
+            }
+
             $db->commit();
-            return $id;
         } catch (\Throwable $e) {
             $db->rollback();
+            error_log('[Proyecto::create] Excepción: ' . $e->getMessage());
             throw $e;
         }
+
+        // logAudit AFTER commit — calling it inside a transaction poisons the
+        // PostgreSQL connection if audit_logs is unavailable, aborting the whole tx.
+        self::logAudit($createdBy, 'PROYECTO_CREATE', $id, $data);
+        return $id;
     }
 
     public static function update(int $id, array $data): bool
@@ -123,13 +174,25 @@ class Proyecto
                 $params
             );
 
-            self::logAudit($data['updated_by'] ?? null, 'PROYECTO_UPDATE', $id, $data);
             $db->commit();
-            return true;
         } catch (\Throwable $e) {
             $db->rollback();
             throw $e;
         }
+
+        self::logAudit($data['updated_by'] ?? null, 'PROYECTO_UPDATE', $id, $data);
+        return true;
+    }
+
+    public static function updateEstado(int $id, string $estado, int $userId): bool
+    {
+        $db = Database::getInstance();
+        $ok = $db->execute(
+            'UPDATE proyectos SET estado = ? WHERE id = ? AND deleted_at IS NULL',
+            [$estado, $id]
+        );
+        self::logAudit($userId, 'PROYECTO_ESTADO', $id, ['estado' => $estado]);
+        return $ok;
     }
 
     public static function softDelete(int $id, int $actorId, ?string $reason = null): array
@@ -182,18 +245,18 @@ class Proyecto
                 [$now, 'proyecto', $id]
             );
 
-            self::logAudit($actorId, 'PROYECTO_DELETE', $id, [
-                'reason'    => $reason,
-                'tareas'    => $deletedTareas,
-                'subtareas' => $deletedSubtareas,
-            ]);
-
             $db->commit();
-            return ['tareas' => $deletedTareas, 'subtareas' => $deletedSubtareas];
         } catch (\Throwable $e) {
             $db->rollback();
             throw $e;
         }
+
+        self::logAudit($actorId, 'PROYECTO_DELETE', $id, [
+            'reason'    => $reason,
+            'tareas'    => $deletedTareas,
+            'subtareas' => $deletedSubtareas,
+        ]);
+        return ['tareas' => $deletedTareas, 'subtareas' => $deletedSubtareas];
     }
 
     public static function getDeletePreview(int $id): array
@@ -227,7 +290,10 @@ class Proyecto
     public static function checkAccess(array $proyecto, int $userId, string $role): bool
     {
         if ($role === 'GOD') return true;
-        if ($role === 'ADMIN') return (int)$proyecto['created_by'] === $userId;
+        if ($role === 'ADMIN') {
+            return (int)$proyecto['created_by'] === $userId
+                || (int)$proyecto['usuario_asignado_id'] === $userId;
+        }
         if ($role === 'USER') return (int)$proyecto['usuario_asignado_id'] === $userId;
         return false;
     }

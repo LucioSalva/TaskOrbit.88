@@ -1,7 +1,9 @@
 <?php
 use App\Middleware\AuthMiddleware;
+use App\Middleware\RoleMiddleware;
 
-$auth = [AuthMiddleware::class];
+$auth    = [AuthMiddleware::class];
+$godOnly = [AuthMiddleware::class, new RoleMiddleware(['GOD'])];
 
 // Public routes
 $router->get('/', function() {
@@ -12,6 +14,7 @@ $router->get('/', function() {
 $router->get('/login', 'AuthController@showLogin');
 $router->post('/login', 'AuthController@login');
 $router->post('/logout', 'AuthController@logout');
+$router->get('/logout', 'AuthController@logoutGet');
 $router->get('/acceso-denegado', 'AuthController@accessDenied');
 
 // Protected routes
@@ -28,6 +31,7 @@ $router->group($auth, function ($r) {
     $r->post('/proyectos/{id}/editar', 'ProyectosController@update');
     $r->post('/proyectos/{id}/eliminar', 'ProyectosController@destroy');
     $r->get('/proyectos/{id}/eliminar-preview', 'ProyectosController@deletePreview');
+    $r->post('/proyectos/{id}/estado', 'ProyectosController@updateEstado');
     $r->get('/proyectos/{id}', 'ProyectosController@show');
 
     // Tareas
@@ -48,14 +52,23 @@ $router->group($auth, function ($r) {
     // Notas
     $r->get('/notas', 'NotasController@index');
     $r->post('/notas', 'NotasController@store');
+    $r->post('/notas/{id}/editar', 'NotasController@update');
+    $r->post('/notas/{id}/pin', 'NotasController@pin');
     $r->post('/notas/{id}/eliminar', 'NotasController@destroy');
+    $r->get('/notas/entidad', 'NotasController@listByEntity');
 
-    // Usuarios (GOD only)
-    $r->get('/admin/usuarios', 'UsuariosController@index');
-    $r->post('/admin/usuarios', 'UsuariosController@store');
-    $r->post('/admin/usuarios/{id}/editar', 'UsuariosController@update');
-    $r->post('/admin/usuarios/{id}/estado', 'UsuariosController@toggleEstado');
-    $r->post('/admin/usuarios/{id}/eliminar', 'UsuariosController@destroy');
+    // Usuarios (GOD only) — doble capa: RoleMiddleware en ruta + requireRole en controlador
+    $r->get('/admin/usuarios', 'UsuariosController@index', [new RoleMiddleware(['GOD'])]);
+    $r->post('/admin/usuarios', 'UsuariosController@store', [new RoleMiddleware(['GOD'])]);
+    $r->post('/admin/usuarios/{id}/editar', 'UsuariosController@update', [new RoleMiddleware(['GOD'])]);
+    $r->post('/admin/usuarios/{id}/estado', 'UsuariosController@toggleEstado', [new RoleMiddleware(['GOD'])]);
+    $r->post('/admin/usuarios/{id}/eliminar', 'UsuariosController@destroy', [new RoleMiddleware(['GOD'])]);
+
+    // Evidencias
+    $r->post('/evidencias/subir', 'EvidenciasController@upload');
+    $r->get('/evidencias/entidad', 'EvidenciasController@listByEntidad');
+    $r->get('/evidencias/{id}/descargar', 'EvidenciasController@download');
+    $r->post('/evidencias/{id}/eliminar', 'EvidenciasController@destroy');
 
     // Notificaciones (AJAX)
     $r->get('/notificaciones', 'NotificacionesController@index');

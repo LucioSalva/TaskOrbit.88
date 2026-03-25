@@ -2,192 +2,775 @@
 $appUrl = rtrim(getenv('APP_URL') ?: '', '/');
 $role = $user['rol'] ?? '';
 $e = fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
-$estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Terminada','enterado'=>'Enterado','ocupado'=>'Ocupado','aceptada'=>'Aceptada'];
+$estadoLabel = [
+    'por_hacer' => 'Por Hacer',
+    'haciendo'  => 'Haciendo',
+    'terminada' => 'Terminada',
+    'enterado'  => 'Enterado',
+    'ocupado'   => 'Ocupado',
+    'aceptada'  => 'Aceptada',
+];
+$prioridadLabel = [
+    'baja'    => 'Baja',
+    'media'   => 'Media',
+    'alta'    => 'Alta',
+    'critica' => 'Critica',
+];
+
+$resumen             = $resumen ?? [];
+$metricasUsuarios    = $metricasUsuarios ?? [];
+$metricasProyectos   = $metricasProyectos ?? [];
+$tareasVencidas      = $tareasVencidas ?? [];
+$tareasSinMov        = $tareasSinMov ?? [];
+$distribucion        = $distribucion ?? [];
+$misDatos            = $misDatos ?? [];
+$flash               = $flash ?? [];
+$notificacionesCount = $notificacionesCount ?? 0;
+
+$totalVencidas      = (int)($resumen['total_tareas_vencidas'] ?? 0);
+$totalSinMovimiento = (int)($resumen['total_tareas_sin_movimiento'] ?? 0);
 ?>
-<div class="d-flex align-items-center justify-content-between mb-4">
-  <div>
-    <h1 class="h3 fw-bold mb-0"><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</h1>
-    <p class="text-muted small mb-0">Resumen de productividad</p>
-  </div>
-  <?php if (in_array($role, ['ADMIN','GOD'])): ?>
-  <a href="<?php echo $appUrl; ?>/proyectos/crear" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i> Nuevo Proyecto</a>
-  <?php endif; ?>
-</div>
 
-<!-- Summary Cards -->
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
-    <div class="card metric-card metric-active p-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="metric-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-kanban"></i></div>
-        <div><div class="fs-3 fw-bold"><?php echo (int)($summary['proyectosActivos']??0); ?></div><div class="text-muted small">Proyectos Activos</div></div>
-      </div>
+<!-- ===================== Page Header ===================== -->
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-3 mb-md-4">
+    <div>
+        <h1 class="h3 fw-bold mb-0">
+            <i class="bi bi-speedometer2 me-2 text-primary d-none d-sm-inline"></i>Dashboard
+        </h1>
+        <p class="text-muted small mb-0">
+            Bienvenido, <?php echo $e($user['nombre_completo'] ?? ''); ?>
+            <span class="badge ms-1 <?php
+                echo match ($role) {
+                    'GOD'   => 'role-badge-god',
+                    'ADMIN' => 'role-badge-admin',
+                    default => 'role-badge-user',
+                };
+            ?>"><?php echo $e($role); ?></span>
+        </p>
     </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card metric-card metric-pending p-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="metric-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-list-task"></i></div>
-        <div><div class="fs-3 fw-bold"><?php echo (int)($summary['tareasPendientes']??0); ?></div><div class="text-muted small">Tareas Pendientes</div></div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card metric-card metric-done p-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="metric-icon bg-success bg-opacity-10 text-success"><i class="bi bi-check-circle"></i></div>
-        <div><div class="fs-3 fw-bold"><?php echo (int)($summary['tareasTerminadas']??0); ?></div><div class="text-muted small">Tareas Terminadas</div></div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card metric-card metric-overdue p-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="metric-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-exclamation-triangle"></i></div>
-        <div><div class="fs-3 fw-bold"><?php echo (int)($summary['subtareasVencidas']??0); ?></div><div class="text-muted small">Subtareas Vencidas</div></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Filters -->
-<?php if (in_array($role,['ADMIN','GOD'])): ?>
-<div class="card mb-4"><div class="card-body py-2">
-  <form method="GET" action="<?php echo $appUrl; ?>/dashboard" class="row g-2 align-items-end">
-    <div class="col-6 col-md-2">
-      <label class="form-label small fw-semibold mb-1">Estado</label>
-      <select name="status" class="form-select form-select-sm">
-        <option value="">Todos</option>
-        <?php foreach($estadoLabel as $val=>$lbl): ?>
-        <option value="<?php echo $e($val); ?>" <?php echo ($filterStatus??'')===$val?'selected':''; ?>><?php echo $e($lbl); ?></option>
-        <?php endforeach; ?>
-      </select>
-    </div>
-    <div class="col-6 col-md-3">
-      <label class="form-label small fw-semibold mb-1">Usuario</label>
-      <select name="userId" class="form-select form-select-sm">
-        <option value="">Todos</option>
-        <?php foreach($usuarios??[] as $u): ?>
-        <option value="<?php echo $e($u['id']); ?>" <?php echo ($filterUserId??'')==$u['id']?'selected':''; ?>><?php echo $e($u['nombre_completo']); ?></option>
-        <?php endforeach; ?>
-      </select>
-    </div>
-    <div class="col-6 col-md-2"><label class="form-label small fw-semibold mb-1">Desde</label><input type="date" name="dateStart" class="form-control form-control-sm" value="<?php echo $e($dateStart??''); ?>"></div>
-    <div class="col-6 col-md-2"><label class="form-label small fw-semibold mb-1">Hasta</label><input type="date" name="dateEnd" class="form-control form-control-sm" value="<?php echo $e($dateEnd??''); ?>"></div>
-    <div class="col-12 col-md-3 d-flex gap-2">
-      <button type="submit" class="btn btn-primary btn-sm flex-fill"><i class="bi bi-funnel me-1"></i>Filtrar</button>
-      <a href="<?php echo $appUrl; ?>/dashboard" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg"></i></a>
-    </div>
-  </form>
-</div></div>
-<?php endif; ?>
-
-<!-- Charts -->
-<?php if(!empty($productividadPorProyecto)): ?>
-<div class="row g-3 mb-4">
-  <div class="col-12 col-lg-7"><div class="card h-100">
-    <div class="card-header fw-semibold small"><i class="bi bi-bar-chart-fill me-1 text-primary"></i> Productividad por Proyecto</div>
-    <div class="card-body" style="height:260px"><canvas id="chart-proyectos"></canvas></div>
-  </div></div>
-  <div class="col-12 col-lg-5"><div class="card h-100">
-    <div class="card-header fw-semibold small"><i class="bi bi-pie-chart-fill me-1 text-success"></i> Estado de Tareas</div>
-    <div class="card-body d-flex align-items-center justify-content-center" style="height:260px"><canvas id="chart-estados" style="max-width:220px"></canvas></div>
-  </div></div>
-</div>
-<?php endif; ?>
-<!-- Dashboard chart data passed via data attributes (no unsafe-inline needed) -->
-<div id="dashboard-data"
-  data-productividad-proyectos="<?php echo htmlspecialchars(json_encode(array_values($productividadPorProyecto ?? [])), ENT_QUOTES, 'UTF-8'); ?>"
-  data-productividad-usuarios="<?php echo htmlspecialchars(json_encode(array_values($productividadPorUsuario ?? [])), ENT_QUOTES, 'UTF-8'); ?>"
-  data-tareas="<?php echo htmlspecialchars(json_encode(array_values($tareas ?? [])), ENT_QUOTES, 'UTF-8'); ?>"
-  style="display:none"></div>
-
-<!-- Productivity by User Chart (ADMIN/GOD only, shows USER-role users) -->
-<?php if(in_array($role, ['ADMIN','GOD'])): ?>
-<div class="card mb-4">
-  <div class="card-header fw-semibold small">
-    <i class="bi bi-person-bar-chart me-1 text-indigo"></i>
-    <i class="bi bi-people-fill me-1 text-primary"></i> Productividad por Usuario
-    <span class="text-muted fw-normal ms-1">(tareas terminadas)</span>
-  </div>
-  <div class="card-body">
-    <?php if(empty($productividadPorUsuario)): ?>
-      <div class="text-center py-4 text-muted small">
-        <i class="bi bi-inbox display-6 d-block mb-2"></i>
-        No hay datos de productividad aún
-      </div>
-    <?php else: ?>
-      <div style="height:280px">
-        <canvas id="chart-productividad-usuarios"></canvas>
-      </div>
+    <?php if (in_array($role, ['ADMIN', 'GOD'])): ?>
+    <a href="<?php echo $appUrl; ?>/proyectos/crear" class="btn btn-primary btn-sm mt-2 mt-md-0">
+        <i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">Nuevo </span>Proyecto
+    </a>
     <?php endif; ?>
-  </div>
 </div>
-<?php endif; ?>
 
-<!-- Productivity Table -->
-<?php if(!empty($productividadPorTarea)): ?>
-<div class="card mb-4">
-  <div class="card-header d-flex align-items-center justify-content-between">
-    <span class="fw-semibold small"><i class="bi bi-table me-1 text-primary"></i>Productividad por Tarea</span>
-    <span class="badge bg-secondary"><?php echo count($productividadPorTarea); ?> tareas</span>
-  </div>
-  <div class="table-responsive"><table class="table table-hover table-sm mb-0">
-    <thead><tr><th>Tarea</th><th class="d-none d-md-table-cell">Proyecto</th><th class="d-none d-lg-table-cell">Responsable</th><th>Estado</th><th style="width:130px">Progreso</th><th class="text-center">Pendientes</th></tr></thead>
-    <tbody>
-    <?php foreach($productividadPorTarea as $pt):
-      $proy = array_filter($proyectos??[], fn($p) => (int)$p['id']===(int)$pt['proyecto_id']);
-      $proy = reset($proy);
-    ?>
-    <tr class="<?php echo $pt['isOverdue']?'table-danger':''; ?>">
-      <td><div class="fw-medium small"><?php echo $e($pt['nombre']); ?></div><?php if($pt['isOverdue']): ?><span class="badge bg-danger" style="font-size:.65rem">Vencida</span><?php endif; ?></td>
-      <td class="d-none d-md-table-cell small text-muted"><?php echo $e($proy['nombre']??'-'); ?></td>
-      <td class="d-none d-lg-table-cell small text-muted"><?php echo $e($pt['usuario_nombre']??'-'); ?></td>
-      <td><span class="badge badge-estado-<?php echo $e($pt['estado']); ?>"><?php echo $e($estadoLabel[$pt['estado']]??$pt['estado']); ?></span></td>
-      <td><div class="d-flex align-items-center gap-1"><div class="progress flex-fill" style="height:6px"><div class="progress-bar bg-primary" style="width:<?php echo $e($pt['progreso']); ?>%"></div></div><small class="text-muted"><?php echo $e($pt['progreso']); ?>%</small></div></td>
-      <td class="text-center"><span class="badge <?php echo $pt['subtareasPendientes']>0?'bg-warning text-dark':'bg-success'; ?>"><?php echo (int)$pt['subtareasPendientes']; ?></span></td>
-    </tr>
-    <?php endforeach; ?>
-    </tbody>
-  </table></div>
-</div>
-<?php endif; ?>
-
-<!-- Recent Projects -->
-<?php if(!empty($proyectos)): ?>
-<div class="card">
-  <div class="card-header d-flex align-items-center justify-content-between">
-    <span class="fw-semibold small"><i class="bi bi-clock-history me-1 text-primary"></i>Proyectos Recientes</span>
-    <a href="<?php echo $appUrl; ?>/proyectos" class="btn btn-outline-primary btn-sm">Ver todos</a>
-  </div>
-  <div class="row g-0 p-3">
-    <?php foreach(array_slice($proyectos,0,6) as $proyecto): ?>
-    <div class="col-12 col-md-6 col-xl-4 p-2">
-      <a href="<?php echo $appUrl; ?>/proyectos/<?php echo $e($proyecto['id']); ?>" class="text-decoration-none">
-        <div class="card border h-100 card-proyecto"><div class="card-body p-3">
-          <div class="d-flex align-items-start justify-content-between mb-2">
-            <h6 class="fw-semibold mb-0 text-truncate me-2"><?php echo $e($proyecto['nombre']); ?></h6>
-            <span class="badge badge-estado-<?php echo $e($proyecto['estado']); ?> flex-shrink-0"><?php echo $e($estadoLabel[$proyecto['estado']]??$proyecto['estado']); ?></span>
-          </div>
-          <?php if($proyecto['descripcion']): ?><p class="text-muted small text-truncate-2 mb-2"><?php echo $e($proyecto['descripcion']); ?></p><?php endif; ?>
-          <div class="d-flex align-items-center justify-content-between">
-            <span class="badge badge-prioridad-<?php echo $e($proyecto['prioridad']); ?>"><?php echo ucfirst($e($proyecto['prioridad'])); ?></span>
-            <?php if($proyecto['fecha_fin']): ?><small class="text-muted"><i class="bi bi-calendar3 me-1"></i><?php echo \App\Helpers\DateHelper::formatDate($proyecto['fecha_fin']); ?></small><?php endif; ?>
-          </div>
-        </div></div>
-      </a>
+<!-- ===================== Flash Messages ===================== -->
+<?php if (!empty($flash)): ?>
+<div class="mb-4">
+    <?php foreach ($flash as $f): ?>
+    <?php $alertType = (($f['type'] ?? '') === 'error') ? 'danger' : $e($f['type'] ?? 'info'); ?>
+    <div class="alert alert-<?php echo $alertType; ?> alert-dismissible fade show" role="alert">
+        <?php echo $e($f['message'] ?? ''); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
     </div>
     <?php endforeach; ?>
-  </div>
-</div>
-<?php else: ?>
-<div class="text-center py-5 text-muted">
-  <i class="bi bi-inbox display-4 mb-3 d-block"></i>
-  <h5>Sin proyectos asignados</h5>
-  <?php if(in_array($role,['ADMIN','GOD'])): ?>
-  <a href="<?php echo $appUrl; ?>/proyectos/crear" class="btn btn-primary btn-sm mt-2"><i class="bi bi-plus-lg me-1"></i> Crear primer proyecto</a>
-  <?php endif; ?>
 </div>
 <?php endif; ?>
 
+<!-- ===================== KPI Summary Cards ===================== -->
+<div class="row g-3 mb-4">
+    <!-- Proyectos Activos -->
+    <div class="col-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-3 d-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary"
+                         style="width:48px;height:48px;min-width:48px">
+                        <i class="bi bi-kanban fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="fs-3 fw-bold lh-1"><?php echo (int)($resumen['total_proyectos_activos'] ?? 0); ?></div>
+                        <div class="text-muted small">Proyectos Activos</div>
+                        <div class="text-muted small opacity-75">
+                            <?php echo (int)($resumen['total_proyectos'] ?? 0); ?> totales
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tareas Activas -->
+    <div class="col-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-3 d-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary"
+                         style="width:48px;height:48px;min-width:48px">
+                        <i class="bi bi-list-task fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="fs-3 fw-bold lh-1"><?php echo (int)($resumen['total_tareas_activas'] ?? 0); ?></div>
+                        <div class="text-muted small">Tareas Activas</div>
+                        <div class="text-muted small opacity-75">
+                            en proceso ahora
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terminadas -->
+    <div class="col-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-3 d-flex align-items-center justify-content-center bg-success bg-opacity-10 text-success"
+                         style="width:48px;height:48px;min-width:48px">
+                        <i class="bi bi-check-circle fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="fs-3 fw-bold lh-1"><?php echo (int)($resumen['total_tareas_terminadas'] ?? 0); ?></div>
+                        <div class="text-muted small">Terminadas</div>
+                        <div class="text-muted small opacity-75">
+                            tareas completadas
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vencidas -->
+    <div class="col-6 col-lg-3">
+        <div class="card h-100 <?php echo $totalVencidas > 0 ? 'bg-danger text-white' : ''; ?>">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-3 d-flex align-items-center justify-content-center <?php echo $totalVencidas > 0
+                        ? 'bg-white bg-opacity-25 text-white'
+                        : 'bg-danger bg-opacity-10 text-danger'; ?>"
+                         style="width:48px;height:48px;min-width:48px">
+                        <i class="bi bi-exclamation-triangle fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="fs-3 fw-bold lh-1"><?php echo $totalVencidas; ?></div>
+                        <div class="<?php echo $totalVencidas > 0 ? 'text-white' : 'text-muted'; ?> small">Vencidas</div>
+                        <div class="<?php echo $totalVencidas > 0 ? 'text-white opacity-75' : 'text-muted opacity-75'; ?> small">
+                            <?php echo $totalSinMovimiento; ?> sin movimiento
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== Mi Productividad ===================== -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-person-circle me-1 text-primary"></i>Mi productividad
+        </h6>
+    </div>
+    <div class="card-body">
+        <?php
+        $miCumplimiento   = (int)($misDatos['porcentaje_cumplimiento'] ?? 0);
+        $miAsignadas      = (int)($misDatos['total_tareas_asignadas'] ?? 0);
+        $miTerminadas     = (int)($misDatos['total_tareas_terminadas'] ?? 0);
+        $miVencidas       = (int)($misDatos['total_tareas_vencidas'] ?? 0);
+        $miCarga          = (int)($misDatos['carga_actual'] ?? 0);
+        $miTiempoPromedio = $misDatos['tiempo_promedio_dias'] ?? null;
+
+        $cumplColor = 'bg-danger';
+        if ($miCumplimiento >= 75) {
+            $cumplColor = 'bg-success';
+        } elseif ($miCumplimiento >= 50) {
+            $cumplColor = 'bg-warning';
+        }
+        ?>
+        <div class="row align-items-center g-2 g-md-3">
+            <div class="col-12 col-md-5">
+                <div class="mb-1 d-flex justify-content-between align-items-center">
+                    <span class="small fw-semibold">Cumplimiento</span>
+                    <span class="small fw-bold"><?php echo $miCumplimiento; ?>%</span>
+                </div>
+                <div class="progress" style="height:10px">
+                    <div class="progress-bar <?php echo $cumplColor; ?>"
+                         role="progressbar"
+                         aria-valuenow="<?php echo $miCumplimiento; ?>"
+                         aria-valuemin="0"
+                         aria-valuemax="100"
+                         style="width:<?php echo max($miCumplimiento, 2); ?>%">
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-7">
+                <div class="d-flex flex-wrap gap-3 text-center justify-content-around">
+                    <div>
+                        <div class="fs-6 fs-md-5 fw-bold"><?php echo $miAsignadas; ?></div>
+                        <div class="text-muted" style="font-size:0.7rem">Asignadas</div>
+                    </div>
+                    <div>
+                        <div class="fs-6 fs-md-5 fw-bold text-success"><?php echo $miTerminadas; ?></div>
+                        <div class="text-muted" style="font-size:0.7rem">Terminadas</div>
+                    </div>
+                    <div>
+                        <div class="fs-6 fs-md-5 fw-bold <?php echo $miVencidas > 0 ? 'text-danger' : ''; ?>"><?php echo $miVencidas; ?></div>
+                        <div class="text-muted" style="font-size:0.7rem">Vencidas</div>
+                    </div>
+                    <div>
+                        <div class="fs-6 fs-md-5 fw-bold"><?php echo $miCarga; ?></div>
+                        <div class="text-muted" style="font-size:0.7rem">Carga</div>
+                    </div>
+                    <div>
+                        <div class="fs-6 fs-md-5 fw-bold">
+                            <?php echo $miTiempoPromedio !== null ? $e($miTiempoPromedio) . 'd' : '&mdash;'; ?>
+                        </div>
+                        <div class="text-muted" style="font-size:0.7rem">Prom.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== Productividad por Usuario (ADMIN/GOD) ===================== -->
+<?php if (in_array($role, ['ADMIN', 'GOD'])): ?>
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-people me-1 text-primary"></i>Productividad por Usuario
+        </h6>
+        <?php if (!empty($metricasUsuarios)): ?>
+        <span class="badge bg-secondary"><?php echo count($metricasUsuarios); ?> usuarios</span>
+        <?php endif; ?>
+    </div>
+    <div class="card-body p-0">
+        <?php if (empty($metricasUsuarios)): ?>
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+            <span class="small">Sin datos de usuarios.</span>
+        </div>
+        <?php else: ?>
+        <!-- Desktop: table -->
+        <div class="table-responsive dashboard-table-desktop">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Usuario</th>
+                        <th class="text-center">Asignadas</th>
+                        <th class="text-center">Terminadas</th>
+                        <th class="text-center">En Proceso</th>
+                        <th class="text-center">Vencidas</th>
+                        <th class="text-center">Cumplimiento (%)</th>
+                        <th class="text-center">Sin Movimiento</th>
+                        <th class="text-center">Carga Actual</th>
+                        <th class="text-center">Tiempo Prom (dias)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($metricasUsuarios as $mu): ?>
+                    <?php
+                    $muCumpl = (int)($mu['porcentaje_cumplimiento'] ?? 0);
+                    $muVenc  = (int)($mu['total_tareas_vencidas'] ?? 0);
+                    $muSinM  = (int)($mu['tareas_sin_movimiento'] ?? 0);
+                    $muTiempo = $mu['tiempo_promedio_dias'] ?? null;
+
+                    $cumplClass = 'text-danger';
+                    if ($muCumpl >= 75) {
+                        $cumplClass = 'text-success';
+                    } elseif ($muCumpl >= 50) {
+                        $cumplClass = 'text-warning';
+                    }
+                    ?>
+                    <tr>
+                        <td>
+                            <span class="fw-medium"><?php echo $e($mu['nombre_completo'] ?? ''); ?></span>
+                        </td>
+                        <td class="text-center"><?php echo (int)($mu['total_tareas_asignadas'] ?? 0); ?></td>
+                        <td class="text-center"><?php echo (int)($mu['total_tareas_terminadas'] ?? 0); ?></td>
+                        <td class="text-center"><?php echo (int)($mu['total_tareas_en_proceso'] ?? 0); ?></td>
+                        <td class="text-center">
+                            <?php if ($muVenc > 0): ?>
+                            <span class="badge bg-danger"><?php echo $muVenc; ?></span>
+                            <?php else: ?>
+                            <?php echo $muVenc; ?>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-bold <?php echo $cumplClass; ?>"><?php echo $muCumpl; ?>%</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="<?php echo $muSinM > 0 ? 'text-warning fw-semibold' : ''; ?>"><?php echo $muSinM; ?></span>
+                        </td>
+                        <td class="text-center"><?php echo (int)($mu['carga_actual'] ?? 0); ?></td>
+                        <td class="text-center">
+                            <?php echo $muTiempo !== null ? $e($muTiempo) . ' dias' : '&mdash;'; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <!-- Mobile: cards -->
+        <div class="dashboard-cards-mobile p-2">
+            <?php foreach ($metricasUsuarios as $mu): ?>
+            <?php
+            $muCumpl = (int)($mu['porcentaje_cumplimiento'] ?? 0);
+            $muVenc  = (int)($mu['total_tareas_vencidas'] ?? 0);
+            $muSinM  = (int)($mu['tareas_sin_movimiento'] ?? 0);
+            $muCarga = (int)($mu['carga_actual'] ?? 0);
+
+            $cumplColor = 'bg-danger';
+            if ($muCumpl >= 75) { $cumplColor = 'bg-success'; }
+            elseif ($muCumpl >= 50) { $cumplColor = 'bg-warning'; }
+            $borderColor = str_replace('bg-', 'border-', $cumplColor);
+            ?>
+            <div class="dashboard-user-card card" style="border-left-color: var(--bs-<?php echo str_replace('bg-', '', $cumplColor); ?>)">
+              <div class="d-flex align-items-center gap-2">
+                <span class="avatar"><?php echo mb_substr($e($mu['nombre_completo'] ?? ''), 0, 1); ?></span>
+                <div class="flex-fill min-w-0">
+                  <div class="fw-semibold small text-truncate"><?php echo $e($mu['nombre_completo'] ?? ''); ?></div>
+                  <div class="d-flex align-items-center gap-2 mt-1">
+                    <div class="progress flex-fill" style="height:6px">
+                      <div class="progress-bar <?php echo $cumplColor; ?>" style="width:<?php echo max($muCumpl, 2); ?>%"></div>
+                    </div>
+                    <span class="fw-bold small" style="min-width:35px"><?php echo $muCumpl; ?>%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="user-metrics">
+                <div class="user-metric">
+                  <span class="user-metric-value"><?php echo (int)($mu['total_tareas_asignadas'] ?? 0); ?></span>
+                  <span class="user-metric-label">Asig.</span>
+                </div>
+                <div class="user-metric">
+                  <span class="user-metric-value text-success"><?php echo (int)($mu['total_tareas_terminadas'] ?? 0); ?></span>
+                  <span class="user-metric-label">Term.</span>
+                </div>
+                <div class="user-metric">
+                  <span class="user-metric-value <?php echo $muVenc > 0 ? 'text-danger' : ''; ?>"><?php echo $muVenc; ?></span>
+                  <span class="user-metric-label">Venc.</span>
+                </div>
+                <div class="user-metric">
+                  <span class="user-metric-value"><?php echo $muCarga; ?></span>
+                  <span class="user-metric-label">Carga</span>
+                </div>
+                <?php if ($muSinM > 0): ?>
+                <div class="user-metric">
+                  <span class="user-metric-value text-warning"><?php echo $muSinM; ?></span>
+                  <span class="user-metric-label">Sin Mov.</span>
+                </div>
+                <?php endif; ?>
+              </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- ===================== Avance por Proyecto ===================== -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-kanban me-1 text-primary"></i>Avance por Proyecto
+        </h6>
+        <?php if (!empty($metricasProyectos)): ?>
+        <span class="badge bg-secondary"><?php echo count($metricasProyectos); ?> proyectos</span>
+        <?php endif; ?>
+    </div>
+    <div class="card-body p-0">
+        <?php if (empty($metricasProyectos)): ?>
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+            <span class="small">Sin proyectos.</span>
+        </div>
+        <?php else: ?>
+        <!-- Desktop: table -->
+        <div class="table-responsive dashboard-table-desktop">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Proyecto</th>
+                        <th>Responsable</th>
+                        <th style="min-width:140px">Avance</th>
+                        <th class="text-center">Tareas</th>
+                        <th class="text-center">Estado</th>
+                        <th class="text-center">Semaforo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($metricasProyectos as $mp): ?>
+                    <?php
+                    $mpAvance    = (int)($mp['porcentaje_avance'] ?? 0);
+                    $mpTotal     = (int)($mp['total_tareas'] ?? 0);
+                    $mpTermin    = (int)($mp['total_tareas_terminadas'] ?? 0);
+                    $mpVenc      = (int)($mp['total_tareas_vencidas'] ?? 0);
+                    $mpEnRiesgo  = !empty($mp['proyecto_en_riesgo']) || $mpVenc > 0;
+
+                    $barColor = 'bg-danger';
+                    if ($mpAvance >= 75) {
+                        $barColor = 'bg-success';
+                    } elseif ($mpAvance >= 40) {
+                        $barColor = 'bg-warning';
+                    }
+                    ?>
+                    <tr>
+                        <td>
+                            <span class="fw-medium"><?php echo $e($mp['nombre'] ?? ''); ?></span>
+                            <?php if (!empty($mp['prioridad'])): ?>
+                            <br>
+                            <span class="badge badge-prioridad-<?php echo $e($mp['prioridad']); ?> mt-1">
+                                <?php echo $e($prioridadLabel[$mp['prioridad']] ?? $mp['prioridad']); ?>
+                            </span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="small text-muted"><?php echo $e($mp['responsable'] ?? '&mdash;'); ?></td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress flex-fill" style="height:8px">
+                                    <div class="progress-bar <?php echo $barColor; ?>"
+                                         role="progressbar"
+                                         aria-valuenow="<?php echo $mpAvance; ?>"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100"
+                                         style="width:<?php echo max($mpAvance, 2); ?>%">
+                                    </div>
+                                </div>
+                                <small class="fw-semibold text-nowrap"><?php echo $mpAvance; ?>%</small>
+                            </div>
+                        </td>
+                        <td class="text-center small">
+                            <?php if ($mpTotal === 0): ?>
+                            <span class="text-muted">Sin tareas</span>
+                            <?php else: ?>
+                            <span class="fw-semibold"><?php echo $mpTotal; ?></span>
+                            <span class="text-muted">total</span><br>
+                            <span class="text-success"><?php echo $mpTermin; ?></span> /
+                            <?php if ($mpVenc > 0): ?>
+                            <span class="text-danger fw-semibold"><?php echo $mpVenc; ?> venc.</span>
+                            <?php else: ?>
+                            <span class="text-muted">0 venc.</span>
+                            <?php endif; ?>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-center">
+                            <?php if (!empty($mp['proyecto_estado'])): ?>
+                            <span class="badge badge-estado-<?php echo $e($mp['proyecto_estado']); ?>">
+                                <?php echo $e($estadoLabel[$mp['proyecto_estado']] ?? $mp['proyecto_estado']); ?>
+                            </span>
+                            <?php else: ?>
+                            &mdash;
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-center">
+                            <?php
+                            $mpSemaforo = 'neutral';
+                            if (!empty($mp['proyecto_estado']) && in_array($mp['proyecto_estado'], ['terminada','aceptada'])) {
+                                $mpSemaforo = 'verde';
+                            } elseif ($mpVenc > 0) {
+                                $mpSemaforo = 'rojo';
+                            } elseif ($mpEnRiesgo) {
+                                $mpSemaforo = 'amarillo';
+                            } elseif ($mpAvance > 0) {
+                                $mpSemaforo = 'verde';
+                            }
+                            echo \App\Services\SemaforoService::badge($mpSemaforo);
+                            ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <!-- Mobile: project cards -->
+        <div class="dashboard-cards-mobile p-2">
+            <?php foreach ($metricasProyectos as $mp): ?>
+            <?php
+            $mpAvance    = (int)($mp['porcentaje_avance'] ?? 0);
+            $mpTotal     = (int)($mp['total_tareas'] ?? 0);
+            $mpTermin    = (int)($mp['total_tareas_terminadas'] ?? 0);
+            $mpVenc      = (int)($mp['total_tareas_vencidas'] ?? 0);
+            $mpEnRiesgo  = !empty($mp['proyecto_en_riesgo']) || $mpVenc > 0;
+
+            $barColor = 'bg-danger';
+            if ($mpAvance >= 75) { $barColor = 'bg-success'; }
+            elseif ($mpAvance >= 40) { $barColor = 'bg-warning'; }
+
+            $mpSemaforo = 'neutral';
+            if (!empty($mp['proyecto_estado']) && in_array($mp['proyecto_estado'], ['terminada','aceptada'])) {
+                $mpSemaforo = 'verde';
+            } elseif ($mpVenc > 0) {
+                $mpSemaforo = 'rojo';
+            } elseif ($mpEnRiesgo) {
+                $mpSemaforo = 'amarillo';
+            } elseif ($mpAvance > 0) {
+                $mpSemaforo = 'verde';
+            }
+            ?>
+            <div class="dashboard-project-card">
+              <div class="d-flex align-items-start justify-content-between gap-2">
+                <div class="flex-fill min-w-0">
+                  <div class="fw-semibold small text-truncate"><?php echo $e($mp['nombre'] ?? ''); ?></div>
+                  <div class="d-flex gap-1 flex-wrap mt-1 align-items-center">
+                    <?php if (!empty($mp['proyecto_estado'])): ?>
+                    <span class="badge badge-estado-<?php echo $e($mp['proyecto_estado']); ?>" style="font-size:0.65rem"><?php echo $e($estadoLabel[$mp['proyecto_estado']] ?? $mp['proyecto_estado']); ?></span>
+                    <?php endif; ?>
+                    <?php if (!empty($mp['prioridad'])): ?>
+                    <span class="badge badge-prioridad-<?php echo $e($mp['prioridad']); ?>" style="font-size:0.65rem"><?php echo $e($prioridadLabel[$mp['prioridad']] ?? $mp['prioridad']); ?></span>
+                    <?php endif; ?>
+                    <?php echo \App\Services\SemaforoService::badge($mpSemaforo); ?>
+                  </div>
+                </div>
+                <div class="text-end flex-shrink-0">
+                  <div class="fw-bold <?php echo $mpAvance >= 75 ? 'text-success' : ($mpAvance >= 40 ? 'text-warning' : 'text-danger'); ?>"><?php echo $mpAvance; ?>%</div>
+                  <div class="text-muted" style="font-size:0.65rem"><?php echo $mpTermin; ?>/<?php echo $mpTotal; ?> tareas</div>
+                </div>
+              </div>
+              <div class="progress" style="height:6px;margin-top:0.4rem">
+                <div class="progress-bar <?php echo $barColor; ?>" style="width:<?php echo max($mpAvance, 2); ?>%"></div>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mt-1">
+                <span class="text-muted" style="font-size:0.65rem">
+                  <?php if (!empty($mp['responsable'])): ?>
+                  <i class="bi bi-person me-1"></i><?php echo $e($mp['responsable']); ?>
+                  <?php endif; ?>
+                </span>
+                <?php if ($mpVenc > 0): ?>
+                <span class="badge bg-danger" style="font-size:0.6rem"><?php echo $mpVenc; ?> venc.</span>
+                <?php endif; ?>
+              </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+</div>
+
+<!-- ===================== Semáforo Summary ===================== -->
+<?php
+$semProy = $semaforoProyectos ?? ['verde'=>0,'amarillo'=>0,'rojo'=>0,'neutral'=>0];
+$semTar  = $semaforoTareas    ?? ['verde'=>0,'amarillo'=>0,'rojo'=>0,'neutral'=>0];
+$semConfig = [
+    'verde'   => ['label'=>'Verde',   'icon'=>'bi-circle-fill', 'color'=>'#28a745'],
+    'amarillo'=> ['label'=>'Amarillo','icon'=>'bi-circle-fill', 'color'=>'#ffc107'],
+    'rojo'    => ['label'=>'Rojo',    'icon'=>'bi-circle-fill', 'color'=>'#dc3545'],
+    'neutral' => ['label'=>'Neutral', 'icon'=>'bi-circle',      'color'=>'#adb5bd'],
+];
+?>
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-6">
+    <div class="card h-100">
+      <div class="card-header py-2">
+        <h6 class="mb-0 fw-semibold small"><i class="bi bi-circle-fill text-primary me-1" style="font-size:.6rem"></i>Semáforo Proyectos</h6>
+      </div>
+      <div class="card-body py-2">
+        <div class="d-flex gap-3 flex-wrap">
+          <?php foreach ($semConfig as $nivel => $cfg): ?>
+          <div class="text-center">
+            <div class="fw-bold fs-5" style="color:<?php echo $cfg['color']; ?>"><?php echo (int)($semProy[$nivel] ?? 0); ?></div>
+            <div class="small text-muted"><?php echo $cfg['label']; ?></div>
+          </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6">
+    <div class="card h-100">
+      <div class="card-header py-2">
+        <h6 class="mb-0 fw-semibold small"><i class="bi bi-circle-fill text-info me-1" style="font-size:.6rem"></i>Semáforo Tareas</h6>
+      </div>
+      <div class="card-body py-2">
+        <div class="d-flex gap-3 flex-wrap">
+          <?php foreach ($semConfig as $nivel => $cfg): ?>
+          <div class="text-center">
+            <div class="fw-bold fs-5" style="color:<?php echo $cfg['color']; ?>"><?php echo (int)($semTar[$nivel] ?? 0); ?></div>
+            <div class="small text-muted"><?php echo $cfg['label']; ?></div>
+          </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== Alertas: Vencidas + Sin Movimiento ===================== -->
+<div class="row g-3 mb-4">
+    <!-- Tareas Vencidas -->
+    <div class="col-12 col-lg-6">
+        <div class="card h-100 border-danger border-opacity-25">
+            <div class="card-header bg-danger bg-opacity-10">
+                <h6 class="mb-0 fw-semibold text-danger">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>Tareas Vencidas
+                    <?php if (!empty($tareasVencidas)): ?>
+                    <span class="badge bg-danger ms-1"><?php echo count($tareasVencidas); ?></span>
+                    <?php endif; ?>
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <?php if (empty($tareasVencidas)): ?>
+                <div class="text-center py-4 text-success">
+                    <i class="bi bi-check-circle fs-3 d-block mb-2"></i>
+                    <span class="small fw-medium">Sin tareas vencidas</span>
+                </div>
+                <?php else: ?>
+                <div class="list-group list-group-flush">
+                    <?php foreach (array_slice($tareasVencidas, 0, 12) as $tv): ?>
+                    <?php
+                    $tvLink = in_array($role, ['ADMIN', 'GOD'])
+                        ? $appUrl . '/tareas/' . (int)($tv['id'] ?? 0) . '/editar'
+                        : '#';
+                    ?>
+                    <a href="<?php echo $tvLink; ?>"
+                       class="list-group-item list-group-item-action <?php echo in_array($role, ['ADMIN', 'GOD']) ? '' : 'pe-none'; ?>">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="me-2">
+                                <div class="fw-medium small"><?php echo $e($tv['nombre'] ?? ''); ?></div>
+                                <div class="text-muted small">
+                                    <?php echo $e($tv['proyecto_nombre'] ?? ''); ?>
+                                    <?php if (!empty($tv['responsable'])): ?>
+                                    &middot; <?php echo $e($tv['responsable']); ?>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <div class="text-end flex-shrink-0">
+                                <span class="badge bg-danger"><?php echo (int)($tv['dias_vencida'] ?? 0); ?>d</span>
+                                <?php if (!empty($tv['prioridad'])): ?>
+                                <br>
+                                <span class="badge badge-prioridad-<?php echo $e($tv['prioridad']); ?> mt-1">
+                                    <?php echo $e($prioridadLabel[$tv['prioridad']] ?? $tv['prioridad']); ?>
+                                </span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </a>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tareas Sin Movimiento -->
+    <div class="col-12 col-lg-6">
+        <div class="card h-100 border-warning border-opacity-25">
+            <div class="card-header bg-warning bg-opacity-10">
+                <h6 class="mb-0 fw-semibold text-warning">
+                    <i class="bi bi-clock-history me-1"></i>Sin Movimiento
+                    <?php if (!empty($tareasSinMov)): ?>
+                    <span class="badge bg-warning text-dark ms-1"><?php echo count($tareasSinMov); ?></span>
+                    <?php endif; ?>
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <?php if (empty($tareasSinMov)): ?>
+                <div class="text-center py-4 text-success">
+                    <i class="bi bi-check-circle fs-3 d-block mb-2"></i>
+                    <span class="small fw-medium">Todo en movimiento</span>
+                </div>
+                <?php else: ?>
+                <div class="list-group list-group-flush">
+                    <?php foreach (array_slice($tareasSinMov, 0, 10) as $tsm): ?>
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="me-2">
+                                <div class="fw-medium small"><?php echo $e($tsm['nombre'] ?? ''); ?></div>
+                                <div class="text-muted small">
+                                    <?php echo $e($tsm['proyecto_nombre'] ?? ''); ?>
+                                    <?php if (!empty($tsm['responsable'])): ?>
+                                    &middot; <?php echo $e($tsm['responsable']); ?>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <div class="text-end flex-shrink-0">
+                                <span class="badge bg-warning text-dark">
+                                    <?php echo (int)($tsm['dias_sin_actividad'] ?? 0); ?>d sin actividad
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== Charts Data Container ===================== -->
+<?php
+$distTotal = array_sum(array_map('intval', $distribucion));
+$hasChartData = $distTotal > 0 || !empty($metricasUsuarios) || !empty($metricasProyectos);
+
+$chartDistribucion = json_encode($distribucion, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT);
+$chartUsuarios = json_encode(array_map(function ($mu) {
+    return [
+        'usuario_id'              => $mu['usuario_id'] ?? null,
+        'nombre_completo'         => $mu['nombre_completo'] ?? '',
+        'total_tareas_asignadas'  => (int)($mu['total_tareas_asignadas'] ?? 0),
+        'total_tareas_terminadas' => (int)($mu['total_tareas_terminadas'] ?? 0),
+        'porcentaje_cumplimiento' => (float)($mu['porcentaje_cumplimiento'] ?? 0),
+        'carga_actual'            => (int)($mu['carga_actual'] ?? 0),
+    ];
+}, $metricasUsuarios), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT);
+$chartProyectos = json_encode(array_map(function ($mp) {
+    return [
+        'proyecto_id'      => $mp['proyecto_id'] ?? null,
+        'nombre'           => $mp['nombre'] ?? '',
+        'porcentaje_avance' => (int)($mp['porcentaje_avance'] ?? 0),
+    ];
+}, $metricasProyectos), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT);
+?>
+
+<?php if ($hasChartData): ?>
+<div id="dashboard-data"
+     class="d-none"
+     data-distribucion="<?php echo $e($chartDistribucion); ?>"
+     data-metricas-usuarios="<?php echo $e($chartUsuarios); ?>"
+     data-metricas-proyectos="<?php echo $e($chartProyectos); ?>">
+</div>
+
+<!-- ===================== Charts Section ===================== -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0 fw-semibold">
+            <a class="text-decoration-none text-reset d-flex align-items-center justify-content-between"
+               data-bs-toggle="collapse"
+               href="#collapseCharts"
+               role="button"
+               aria-expanded="true"
+               aria-controls="collapseCharts">
+                <span><i class="bi bi-bar-chart-line me-1 text-primary"></i>Graficas</span>
+                <i class="bi bi-chevron-down small"></i>
+            </a>
+        </h6>
+    </div>
+    <div class="collapse show" id="collapseCharts" data-mobile-collapse="true">
+        <div class="card-body">
+            <div class="row g-3">
+                <!-- Doughnut: Distribucion de Tareas -->
+                <?php if ($distTotal > 0): ?>
+                <div class="col-md-6">
+                    <h6 class="small fw-semibold text-center mb-3">
+                        <i class="bi bi-pie-chart me-1"></i>Distribucion de Tareas
+                    </h6>
+                    <div class="d-flex justify-content-center">
+                        <canvas id="chart-estados" style="max-height:280px"></canvas>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Bar: Cumplimiento por Usuario (ADMIN/GOD) -->
+                <?php if (in_array($role, ['ADMIN', 'GOD']) && !empty($metricasUsuarios)): ?>
+                <div class="col-md-6">
+                    <h6 class="small fw-semibold text-center mb-3">
+                        <i class="bi bi-people me-1"></i>Cumplimiento por Usuario
+                    </h6>
+                    <div>
+                        <canvas id="chart-usuarios" style="max-height:280px"></canvas>
+                    </div>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- ===================== Dashboard JS ===================== -->
 <script src="<?php echo \App\Core\View::asset('js/dashboard.js'); ?>"></script>

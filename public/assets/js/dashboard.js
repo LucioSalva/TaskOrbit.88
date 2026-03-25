@@ -1,121 +1,126 @@
 /* =============================================
    TaskOrbit - Dashboard Charts
-   Reads data from #dashboard-data element to
-   avoid unsafe-inline script requirements.
+   Reads data from #dashboard-data element.
    ============================================= */
 
 'use strict';
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Collapse charts section on mobile by default
+  if (window.innerWidth < 768) {
+    const chartsCollapse = document.getElementById('collapseCharts');
+    if (chartsCollapse && chartsCollapse.classList.contains('show')) {
+      chartsCollapse.classList.remove('show');
+    }
+  }
+
   const dataEl = document.getElementById('dashboard-data');
   if (!dataEl || typeof Chart === 'undefined') return;
 
-  const productividadProyectos = JSON.parse(dataEl.dataset.productividadProyectos || '[]');
-  const productividadUsuarios  = JSON.parse(dataEl.dataset.productividadUsuarios  || '[]');
-  const tareas                 = JSON.parse(dataEl.dataset.tareas                 || '[]');
+  const distribucion      = JSON.parse(dataEl.dataset.distribucion      || '{}');
+  const metricasUsuarios  = JSON.parse(dataEl.dataset.metricasUsuarios  || '[]');
+  const metricasProyectos = JSON.parse(dataEl.dataset.metricasProyectos || '[]');
 
-  // ---- Productivity by user chart ----
-  const ctxUsuarios = document.getElementById('chart-productividad-usuarios');
-  if (ctxUsuarios && productividadUsuarios.length > 0) {
-    const labels     = productividadUsuarios.map(u => u.nombre_completo);
-    const terminadas = productividadUsuarios.map(u => parseInt(u.tareas_terminadas, 10) || 0);
-    const pendientes = productividadUsuarios.map(u => (parseInt(u.tareas_total, 10) || 0) - (parseInt(u.tareas_terminadas, 10) || 0));
+  // ---- Task state doughnut chart ----
+  const ctxEstados = document.getElementById('chart-estados');
+  if (ctxEstados) {
+    const keys   = ['por_hacer', 'haciendo', 'terminada', 'enterado', 'ocupado', 'aceptada'];
+    const labels = ['Por Hacer', 'Haciendo', 'Terminada', 'Enterado', 'Ocupado', 'Aceptada'];
+    const colors = ['#6c757d', '#0d6efd', '#198754', '#0dcaf0', '#ffc107', '#20c997'];
+    const values = keys.map(k => parseInt(distribucion[k] || 0, 10));
+    const total  = values.reduce((a, b) => a + b, 0);
 
-    new Chart(ctxUsuarios, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Tareas Terminadas',
-            data: terminadas,
-            backgroundColor: 'rgba(16,185,129,0.75)',
-            borderColor: 'rgb(16,185,129)',
-            borderWidth: 1,
-            borderRadius: 6,
-          },
-          {
-            label: 'Tareas Pendientes',
-            data: pendientes,
-            backgroundColor: 'rgba(245,158,11,0.6)',
-            borderColor: 'rgb(245,158,11)',
-            borderWidth: 1,
-            borderRadius: 6,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'top', labels: { font: { size: 12 }, padding: 12 } },
-          tooltip: {
-            callbacks: {
-              afterBody: (items) => {
-                const idx   = items[0].dataIndex;
-                const total = (terminadas[idx] || 0) + (pendientes[idx] || 0);
-                const pct   = total > 0 ? Math.round((terminadas[idx] / total) * 100) : 0;
-                return `Completado: ${pct}%`;
+    if (total > 0) {
+      new Chart(ctxEstados, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data:            values,
+            backgroundColor: colors,
+            borderWidth:     2,
+          }],
+        },
+        options: {
+          responsive:          true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const pct = total > 0 ? Math.round((ctx.raw / total) * 100) : 0;
+                  return ` ${ctx.label}: ${ctx.raw} (${pct}%)`;
+                },
               },
             },
           },
         },
-        scales: {
-          x: { stacked: false, ticks: { font: { size: 12 } } },
-          y: { beginAtZero: true, ticks: { stepSize: 1 } },
-        },
-      },
-    });
+      });
+    } else {
+      ctxEstados.closest('.chart-wrap')?.classList.add('d-none');
+    }
   }
 
-  // ---- Productivity by project bar chart ----
-  const ctxBar = document.getElementById('chart-proyectos');
-  if (ctxBar && productividadProyectos.length > 0) {
-    new Chart(ctxBar, {
+  // ---- User cumplimiento horizontal bar chart ----
+  const ctxUsuarios = document.getElementById('chart-usuarios');
+  if (ctxUsuarios && metricasUsuarios.length > 0) {
+    const labels     = metricasUsuarios.map(u => u.nombre_completo);
+    const cumplimiento = metricasUsuarios.map(u => parseFloat(u.porcentaje_cumplimiento) || 0);
+    const carga        = metricasUsuarios.map(u => parseInt(u.carga_actual, 10) || 0);
+
+    new Chart(ctxUsuarios, {
       type: 'bar',
       data: {
-        labels:   productividadProyectos.map(p => p.nombre),
-        datasets: [{
-          label:           '% Completado',
-          data:            productividadProyectos.map(p => p.progreso),
-          backgroundColor: 'rgba(79,70,229,0.7)',
-          borderColor:     'rgb(79,70,229)',
-          borderWidth:     1,
-          borderRadius:    6,
-        }],
-      },
-      options: {
-        responsive:          true,
-        maintainAspectRatio: false,
-        scales: {
-          y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } },
-        },
-        plugins: { legend: { display: false } },
-      },
-    });
-  }
-
-  // ---- Task status doughnut chart ----
-  const ctxPie = document.getElementById('chart-estados');
-  if (ctxPie) {
-    const keys = ['por_hacer', 'haciendo', 'terminada', 'enterado', 'ocupado', 'aceptada'];
-    const lbls = ['Por Hacer', 'Haciendo', 'Terminada', 'Enterado', 'Ocupado', 'Aceptada'];
-
-    new Chart(ctxPie, {
-      type: 'doughnut',
-      data: {
-        labels:   lbls,
-        datasets: [{
-          data:            keys.map(k => tareas.filter(t => t.estado === k).length),
-          backgroundColor: ['#6c757d', '#0d6efd', '#198754', '#0dcaf0', '#ffc107', '#20c997'],
-          borderWidth:     2,
-        }],
+        labels,
+        datasets: [
+          {
+            label:           '% Cumplimiento',
+            data:            cumplimiento,
+            backgroundColor: cumplimiento.map(v =>
+              v >= 75 ? 'rgba(25,135,84,0.75)' : v >= 50 ? 'rgba(255,193,7,0.75)' : 'rgba(220,53,69,0.75)'
+            ),
+            borderColor: cumplimiento.map(v =>
+              v >= 75 ? 'rgb(25,135,84)' : v >= 50 ? 'rgb(255,193,7)' : 'rgb(220,53,69)'
+            ),
+            borderWidth:  1,
+            borderRadius: 4,
+            yAxisID:      'yCumplimiento',
+          },
+          {
+            label:           'Carga Actual',
+            data:            carga,
+            backgroundColor: 'rgba(13,110,253,0.35)',
+            borderColor:     'rgb(13,110,253)',
+            borderWidth:     1,
+            borderRadius:    4,
+            yAxisID:         'yCarga',
+          },
+        ],
       },
       options: {
         responsive:          true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } },
+          legend: { position: 'top', labels: { font: { size: 12 }, padding: 12 } },
+        },
+        scales: {
+          x: { ticks: { font: { size: 11 } } },
+          yCumplimiento: {
+            type:     'linear',
+            position: 'left',
+            min:      0,
+            max:      100,
+            ticks:    { callback: v => v + '%', stepSize: 25 },
+            grid:     { drawOnChartArea: true },
+          },
+          yCarga: {
+            type:       'linear',
+            position:   'right',
+            beginAtZero: true,
+            ticks:      { stepSize: 1 },
+            grid:       { drawOnChartArea: false },
+          },
         },
       },
     });

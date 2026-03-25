@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="<?php echo \App\Core\View::asset('css/app.css'); ?>">
+  <link rel="stylesheet" href="<?php echo \App\Core\View::asset('css/vistas.css'); ?>">
+  <link rel="stylesheet" href="<?php echo \App\Core\View::asset('css/mobile.css'); ?>">
 </head>
 <body data-app-url="<?php echo rtrim(getenv('APP_URL') ?: '', '/'); ?>">
 
@@ -52,14 +54,12 @@ function isActive(string $prefix, string $current): string {
     <a href="<?php echo $appUrl; ?>/notas" class="nav-link <?php echo isActive('/notas', $currentUri); ?>">
       <i class="bi bi-sticky"></i> Notas
     </a>
-    <?php if (in_array($userRole, ['GOD', 'ADMIN'])): ?>
+    <?php if ($userRole === 'GOD'): ?>
     <hr class="my-2" style="border-color:rgba(255,255,255,0.1)">
     <div class="px-3 py-1" style="font-size:0.7rem;color:#a5b4fc;text-transform:uppercase;letter-spacing:1px;">Administración</div>
-    <?php if (in_array($userRole, ['GOD', 'ADMIN'])): ?>
     <a href="<?php echo $appUrl; ?>/admin/usuarios" class="nav-link <?php echo isActive('/admin/usuarios', $currentUri); ?>">
       <i class="bi bi-people"></i> Usuarios
     </a>
-    <?php endif; ?>
     <?php endif; ?>
   </nav>
 
@@ -81,13 +81,30 @@ function isActive(string $prefix, string $current): string {
 
   <!-- Topbar -->
   <header class="topbar d-flex align-items-center px-3 gap-2">
-    <button id="sidebar-toggle" class="btn btn-sm btn-outline-secondary d-lg-none" title="Menú">
+    <button id="sidebar-toggle" class="btn btn-sm btn-outline-secondary d-lg-none" title="Menu">
       <i class="bi bi-list fs-5"></i>
     </button>
 
     <div class="fw-semibold text-muted small d-none d-sm-block">
       <?php echo htmlspecialchars(getenv('APP_NAME') ?: 'TaskOrbit'); ?>
     </div>
+
+    <!-- Mobile: compact page title -->
+    <span class="fw-semibold small text-truncate d-sm-none" style="max-width:120px">
+      <?php
+      $pageTitles = [
+        '/dashboard' => 'Dashboard',
+        '/proyectos' => 'Proyectos',
+        '/notas' => 'Notas',
+        '/admin/usuarios' => 'Usuarios',
+      ];
+      $pageTitle = 'TaskOrbit';
+      foreach ($pageTitles as $prefix => $title) {
+        if (str_starts_with($currentUri, $prefix)) { $pageTitle = $title; break; }
+      }
+      echo $pageTitle;
+      ?>
+    </span>
 
     <div class="ms-auto d-flex align-items-center gap-2">
 
@@ -100,7 +117,7 @@ function isActive(string $prefix, string $current): string {
         <div class="dropdown-menu dropdown-menu-end p-0 dropdown-notifications">
           <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
             <strong class="small">Notificaciones</strong>
-            <a href="#" id="notif-mark-all" class="small text-primary">Marcar todas leídas</a>
+            <a href="#" id="notif-mark-all" class="small text-primary">Marcar todas leidas</a>
           </div>
           <div id="notif-list">
             <div class="text-center py-3 text-muted small">Cargando...</div>
@@ -116,7 +133,7 @@ function isActive(string $prefix, string $current): string {
       <!-- Logout -->
       <form method="POST" action="<?php echo $appUrl; ?>/logout" class="d-inline">
         <?php echo \App\Helpers\CSRF::tokenField(); ?>
-        <button type="submit" class="btn btn-sm btn-outline-danger" title="Cerrar sesión">
+        <button type="submit" class="btn btn-sm btn-outline-danger" title="Cerrar sesion">
           <i class="bi bi-box-arrow-right"></i>
           <span class="d-none d-md-inline ms-1">Salir</span>
         </button>
@@ -127,13 +144,16 @@ function isActive(string $prefix, string $current): string {
   <!-- Flash messages -->
   <div class="flash-container">
     <?php
-    $flashes = $_SESSION['flash'] ?? [];
+    // Use the $flash variable already extracted by View::render() from $data['flash'].
+    // Falling back to $_SESSION['flash'] ensures messages are shown even when a view
+    // does not pass 'flash' explicitly, then clears the session copy.
+    $flashes = (!empty($flash) && is_array($flash)) ? $flash : ($_SESSION['flash'] ?? []);
     unset($_SESSION['flash']);
     foreach ($flashes as $f):
-      $type = $f['type'] === 'error' ? 'danger' : $f['type'];
+      $type = ($f['type'] ?? '') === 'error' ? 'danger' : ($f['type'] ?? 'info');
     ?>
     <div class="alert alert-<?php echo htmlspecialchars($type); ?> alert-dismissible fade show flash-alert shadow-sm" role="alert">
-      <?php echo htmlspecialchars($f['message']); ?>
+      <?php echo htmlspecialchars($f['message'] ?? ''); ?>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     <?php endforeach; ?>
@@ -146,27 +166,57 @@ function isActive(string $prefix, string $current): string {
 
 </div>
 
+<!-- Bottom Navigation Bar (mobile only) -->
+<nav class="bottom-nav" id="bottom-nav">
+  <a href="<?php echo $appUrl; ?>/dashboard" class="bottom-nav-item <?php echo isActive('/dashboard', $currentUri); ?>">
+    <i class="bi bi-speedometer2"></i>
+    <span>Inicio</span>
+  </a>
+  <a href="<?php echo $appUrl; ?>/proyectos" class="bottom-nav-item <?php echo isActive('/proyectos', $currentUri); ?>">
+    <i class="bi bi-kanban"></i>
+    <span>Proyectos</span>
+  </a>
+  <a href="<?php echo $appUrl; ?>/notas" class="bottom-nav-item <?php echo isActive('/notas', $currentUri); ?>">
+    <i class="bi bi-sticky"></i>
+    <span>Notas</span>
+  </a>
+  <a href="#" class="bottom-nav-item" id="bottom-nav-menu" aria-label="Menu">
+    <i class="bi bi-three-dots"></i>
+    <span>Menu</span>
+  </a>
+</nav>
+
 <!-- Delete confirmation modal -->
 <div class="modal fade" id="modal-confirm-delete" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="modal-delete-title">¿Confirmar eliminación?</h5>
+    <div class="modal-content border-danger border-top border-3">
+      <div class="modal-header bg-danger bg-opacity-10">
+        <h5 class="modal-title text-danger" id="modal-delete-title">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>Confirmar eliminacion
+        </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <p id="modal-delete-msg">Esta acción no se puede deshacer.</p>
+        <p id="modal-delete-msg" class="fw-medium">Esta accion no se puede deshacer.</p>
+        <div id="modal-delete-preview"></div>
         <div class="mb-3">
-          <label for="modal-delete-reason" class="form-label small fw-semibold">Motivo (opcional)</label>
-          <input type="text" class="form-control form-control-sm" id="modal-delete-reason" name="reason" maxlength="200">
+          <label for="modal-delete-reason" class="form-label small fw-semibold">
+            Motivo de la eliminacion <span class="text-muted fw-normal">(opcional pero recomendado)</span>
+          </label>
+          <input type="text" class="form-control form-control-sm" id="modal-delete-reason" name="reason"
+                 maxlength="200" placeholder="Ej: Ya no se necesita, duplicado, error...">
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-lg me-1"></i>No, cancelar
+        </button>
         <form id="form-confirm-delete" method="POST">
           <?php echo \App\Helpers\CSRF::tokenField(); ?>
           <input type="hidden" name="reason" id="modal-reason-field">
-          <button type="submit" class="btn btn-danger">Eliminar</button>
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-trash me-1"></i>Si, eliminar permanentemente
+          </button>
         </form>
       </div>
     </div>
@@ -176,6 +226,12 @@ function isActive(string $prefix, string $current): string {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="<?php echo \App\Core\View::asset('js/app.js'); ?>"></script>
+<script src="<?php echo \App\Core\View::asset('js/vistas.js'); ?>"></script>
+
+<?php include BASE_PATH . '/app/Views/partials/_quick_action_modals.php'; ?>
+<script src="<?php echo \App\Core\View::asset('js/acciones-rapidas.js'); ?>"></script>
+<script src="<?php echo \App\Core\View::asset('js/notas-panel.js'); ?>"></script>
+<script src="<?php echo \App\Core\View::asset('js/evidencias.js'); ?>"></script>
 
 </body>
 </html>

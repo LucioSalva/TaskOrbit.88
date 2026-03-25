@@ -1,4 +1,39 @@
 <?php
+/**
+ * ================================================================
+ *  TASKORBIT
+ *  Humberto Salvador Ruiz Lucio
+ * ================================================================
+ *  Plataforma privada de gestión de proyectos, tareas,
+ *  subtareas, procesos y colaboración interna.
+ *
+ *  Módulo: Modelos de Datos
+ *  Archivo: Tarea.php
+ *
+ *  © 2025–2026 Humberto Salvador Ruiz Lucio.
+ *  Todos los derechos reservados.
+ *
+ *  PROPIEDAD INTELECTUAL Y CONFIDENCIALIDAD:
+ *  El presente código fuente, su estructura lógica,
+ *  funcionalidad, arquitectura, diseño de datos,
+ *  documentación y componentes asociados forman parte
+ *  de un sistema propietario y confidencial.
+ *
+ *  Queda prohibida su copia, reproducción, distribución,
+ *  adaptación, descompilación, comercialización,
+ *  divulgación o utilización no autorizada, total o parcial,
+ *  por cualquier medio, sin el consentimiento previo
+ *  y por escrito de su titular.
+ *
+ *  El uso no autorizado de este software podrá dar lugar
+ *  a las acciones legales civiles, mercantiles, administrativas
+ *  o penales correspondientes conforme a la legislación aplicable
+ *  en los Estados Unidos Mexicanos.
+ *
+ *  Uso interno exclusivo.
+ *  Documento/código confidencial.
+ * ================================================================
+ */
 declare(strict_types=1);
 
 namespace App\Models;
@@ -88,15 +123,26 @@ class Tarea
                     $createdBy,
                 ]
             );
-            $id = (int)$stmt->fetchColumn();
+            $raw = $stmt->fetchColumn();
+            error_log('[Tarea::create] RETURNING id raw=' . var_export($raw, true));
+            $id = (int)$raw;
 
-            self::logAudit($createdBy, 'TAREA_CREATE', $id, $data);
+            if ($id <= 0) {
+                $db->rollBack();
+                throw new \RuntimeException(
+                    'INSERT en tareas no devolvió un ID válido (RETURNING id retornó: ' . var_export($raw, true) . ')'
+                );
+            }
+
             $db->commit();
-            return $id;
+            error_log('[Tarea::create] Tarea creada con ID: ' . $id);
         } catch (\Throwable $e) {
             $db->rollback();
             throw $e;
         }
+
+        self::logAudit($createdBy, 'TAREA_CREATE', $id, $data);
+        return $id;
     }
 
     public static function update(int $id, array $data): bool
@@ -121,6 +167,8 @@ class Tarea
                 }
             }
 
+            // updated_at se actualiza automáticamente vía trigger o DEFAULT
+
             if (empty($fields)) return false;
 
             $params[] = $id;
@@ -129,22 +177,21 @@ class Tarea
                 $params
             );
 
-            self::logAudit($data['updated_by'] ?? null, 'TAREA_UPDATE', $id, $data);
             $db->commit();
-            return true;
         } catch (\Throwable $e) {
             $db->rollback();
             throw $e;
         }
+
+        self::logAudit($data['updated_by'] ?? null, 'TAREA_UPDATE', $id, $data);
+        return true;
     }
 
     public static function updateEstado(int $id, string $estado, int $userId): bool
     {
         $db = Database::getInstance();
-        return $db->execute(
-            'UPDATE tareas SET estado = ? WHERE id = ? AND deleted_at IS NULL',
-            [$estado, $id]
-        );
+        $sql = 'UPDATE tareas SET estado = ? WHERE id = ? AND deleted_at IS NULL';
+        return $db->execute($sql, [$estado, $id]);
     }
 
     public static function softDelete(int $id, int $actorId, ?string $reason = null): array
@@ -177,13 +224,14 @@ class Tarea
                 [$now, $id]
             );
 
-            self::logAudit($actorId, 'TAREA_DELETE', $id, ['reason' => $reason, 'subtareas' => $deletedSubtareas]);
             $db->commit();
-            return ['subtareas' => $deletedSubtareas];
         } catch (\Throwable $e) {
             $db->rollback();
             throw $e;
         }
+
+        self::logAudit($actorId, 'TAREA_DELETE', $id, ['reason' => $reason, 'subtareas' => $deletedSubtareas]);
+        return ['subtareas' => $deletedSubtareas];
     }
 
     public static function getDeletePreview(int $id): array
@@ -204,6 +252,25 @@ class Tarea
             'subtareas' => $subtareas['total'] ?? 0,
             'notas'     => $notas['total'] ?? 0,
         ];
+    }
+
+    /**
+     * Fetch lightweight tarea rows for multiple proyecto IDs.
+     * Used by SemaforoService for batch hierarchical calculation.
+     */
+    public static function getByProyectoIds(array $proyectoIds): array
+    {
+        if (empty($proyectoIds)) return [];
+        $db = Database::getInstance();
+        $placeholders = implode(',', array_fill(0, count($proyectoIds), '?'));
+        return $db->fetchAll(
+            "SELECT t.id, t.proyecto_id, t.estado, t.fecha_fin, t.updated_at
+             FROM tareas t
+             JOIN proyectos p ON p.id = t.proyecto_id AND p.deleted_at IS NULL
+             WHERE t.proyecto_id IN ($placeholders)
+               AND t.deleted_at IS NULL",
+            $proyectoIds
+        );
     }
 
     public static function logAudit(?int $actorId, string $action, int $targetId, array $details = []): void

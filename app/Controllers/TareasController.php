@@ -1,12 +1,47 @@
 <?php
+/**
+ * ================================================================
+ *  TASKORBIT
+ *  Humberto Salvador Ruiz Lucio
+ * ================================================================
+ *  Plataforma privada de gestión de proyectos, tareas,
+ *  subtareas, procesos y colaboración interna.
+ *
+ *  Módulo: Gestión de Tareas
+ *  Archivo: TareasController.php
+ *
+ *  © 2025–2026 Humberto Salvador Ruiz Lucio.
+ *  Todos los derechos reservados.
+ *
+ *  PROPIEDAD INTELECTUAL Y CONFIDENCIALIDAD:
+ *  El presente código fuente, su estructura lógica,
+ *  funcionalidad, arquitectura, diseño de datos,
+ *  documentación y componentes asociados forman parte
+ *  de un sistema propietario y confidencial.
+ *
+ *  Queda prohibida su copia, reproducción, distribución,
+ *  adaptación, descompilación, comercialización,
+ *  divulgación o utilización no autorizada, total o parcial,
+ *  por cualquier medio, sin el consentimiento previo
+ *  y por escrito de su titular.
+ *
+ *  El uso no autorizado de este software podrá dar lugar
+ *  a las acciones legales civiles, mercantiles, administrativas
+ *  o penales correspondientes conforme a la legislación aplicable
+ *  en los Estados Unidos Mexicanos.
+ *
+ *  Uso interno exclusivo.
+ *  Documento/código confidencial.
+ * ================================================================
+ */
 declare(strict_types=1);
 
 namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Helpers\{CSRF, Validator};
-use App\Models\{Proyecto, Tarea, Subtarea, Usuario, Notificacion};
-use App\Services\WhatsAppService;
+use App\Models\{Proyecto, Tarea, Subtarea, Usuario, Notificacion, Nota, Evidencia};
+use App\Services\{WhatsAppService, EstadoService, NotificacionService, SemaforoService};
 
 class TareasController extends Controller
 {
@@ -29,13 +64,55 @@ class TareasController extends Controller
         }
         unset($tarea);
 
+        // Attach semáforo to each tarea
+        SemaforoService::attachToAll($tareas);
+
         $usuarios = ($user['rol'] !== 'USER') ? Usuario::getAssignableUsers() : [];
 
+        // Group by estado
+        $tarByEstado = [];
+        $estadosKanban = ['por_hacer','haciendo','enterado','ocupado','terminada','aceptada'];
+        foreach ($estadosKanban as $e) $tarByEstado[$e] = [];
+        foreach ($tareas as $t) {
+            $e = $t['estado'] ?? 'por_hacer';
+            $tarByEstado[$e][] = $t;
+        }
+
+        // Group by usuario
+        $tarByUsuario = [];
+        foreach ($tareas as $t) {
+            $key = $t['usuario_asignado_nombre'] ?? 'Sin asignar';
+            if (!isset($tarByUsuario[$key])) {
+                $tarByUsuario[$key] = ['nombre' => $key, 'items' => []];
+            }
+            $tarByUsuario[$key]['items'][] = $t;
+        }
+        ksort($tarByUsuario);
+        if (isset($tarByUsuario['Sin asignar'])) {
+            $sa = $tarByUsuario['Sin asignar'];
+            unset($tarByUsuario['Sin asignar']);
+            $tarByUsuario['Sin asignar'] = $sa;
+        }
+
+        // Timeline sorted
+        $tarTimeline = $tareas;
+        usort($tarTimeline, function($a, $b) {
+            $af = $a['fecha_fin'] ?? null;
+            $bf = $b['fecha_fin'] ?? null;
+            if ($af && $bf) return strcmp($af, $bf);
+            if ($af) return -1;
+            if ($bf) return 1;
+            return strcmp($b['updated_at'] ?? '', $a['updated_at'] ?? '');
+        });
+
         $this->view('tareas/index', [
-            'flash'     => $this->getFlash(),
-            'proyecto'  => $proyecto,
-            'tareas'    => $tareas,
-            'usuarios'  => $usuarios,
+            'flash'        => $this->getFlash(),
+            'proyecto'     => $proyecto,
+            'tareas'       => $tareas,
+            'usuarios'     => $usuarios,
+            'tarByEstado'  => $tarByEstado,
+            'tarByUsuario' => $tarByUsuario,
+            'tarTimeline'  => $tarTimeline,
         ]);
     }
 
@@ -86,18 +163,26 @@ class TareasController extends Controller
         if (!Validator::required($nombre) || !Validator::minLength($nombre, 3)) {
             $errors[] = 'El nombre es requerido (mínimo 3 caracteres).';
         }
+        if (mb_strlen($descripcion) > 2000) {
+            $errors[] = 'La descripción no puede superar los 2000 caracteres.';
+        }
         if (!Validator::isValidPrioridad($prioridad)) $errors[] = 'Prioridad inválida.';
         if (!Validator::isValidEstado($estado))       $errors[] = 'Estado inválido.';
         if ($fechaInicio && $fechaFin && strtotime($fechaFin) <= strtotime($fechaInicio)) {
             $errors[] = 'Rango de fechas inválido.';
         }
 
-        // Validate task dates within project dates
-        if ($fechaInicio && $proyecto['fecha_inicio'] && $fechaInicio < $proyecto['fecha_inicio']) {
-            $errors[] = 'La fecha de inicio no puede ser anterior al inicio del proyecto.';
+        // Validate task dates within project dates using DateTime for correct comparison
+        $dtInicio  = !empty($fechaInicio)              ? new \DateTime($fechaInicio)              : null;
+        $dtFin     = !empty($fechaFin)                 ? new \DateTime($fechaFin)                 : null;
+        $dtProjIni = !empty($proyecto['fecha_inicio']) ? new \DateTime($proyecto['fecha_inicio']) : null;
+        $dtProjFin = !empty($proyecto['fecha_fin'])    ? new \DateTime($proyecto['fecha_fin'])    : null;
+
+        if ($dtInicio && $dtProjIni && $dtInicio < $dtProjIni) {
+            $errors[] = 'La fecha de inicio no puede ser anterior al inicio del proyecto (' . $proyecto['fecha_inicio'] . ').';
         }
-        if ($fechaFin && $proyecto['fecha_fin'] && $fechaFin > $proyecto['fecha_fin']) {
-            $errors[] = 'La fecha de fin no puede ser posterior al fin del proyecto.';
+        if ($dtFin && $dtProjFin && $dtFin > $dtProjFin) {
+            $errors[] = 'La fecha de fin no puede ser posterior al fin del proyecto (' . $proyecto['fecha_fin'] . ').';
         }
 
         if ($usuarioAsignadoId) {
@@ -122,42 +207,45 @@ class TareasController extends Controller
             'usuario_asignado_id'=> $usuarioAsignadoId,
         ], $user['id']);
 
-        // Notification + WhatsApp
+        // Notificación centralizada de asignación
         $effectiveUserId = $usuarioAsignadoId ?? (int)$proyecto['usuario_asignado_id'];
         if ($effectiveUserId) {
-            Notificacion::create([
-                'user_id'     => $effectiveUserId,
-                'type'        => 'asignacion_tarea',
-                'title'       => 'Nueva tarea asignada',
-                'message'     => "Se te asignó la tarea \"$nombre\" en el proyecto \"{$proyecto['nombre']}\".",
-                'severity'    => 'info',
-                'channel'     => 'in_app',
-                'entity_type' => 'tarea',
-                'entity_id'   => $tareaId,
-            ]);
-
             $assignedUser = Usuario::findById($effectiveUserId);
-            if ($assignedUser && $assignedUser['telefono']) {
-                (new WhatsAppService())->sendTaskAssigned(
-                    $assignedUser['telefono'],
-                    $assignedUser['nombre_completo'],
-                    $nombre,
-                    $proyecto['nombre']
-                );
-            }
-        }
-
-        // Notify admins when a USER creates a task
-        if ($user['rol'] === 'USER') {
-            Notificacion::notifyAdmins([
-                'type'        => 'user_tarea_creada',
-                'title'       => 'Nueva tarea creada por usuario',
-                'message'     => "El usuario {$user['nombre_completo']} creó la tarea \"$nombre\" en el proyecto \"{$proyecto['nombre']}\".",
-                'severity'    => 'info',
-                'entity_type' => 'tarea',
-                'entity_id'   => $tareaId,
+            NotificacionService::dispatch(NotificacionService::TAREA_ASIGNADA, [
+                'entity_type'   => 'tarea',
+                'entity_id'     => $tareaId,
+                'user_id'       => $effectiveUserId,
+                'user_nombre'   => $assignedUser['nombre_completo'] ?? '',
+                'user_telefono' => $assignedUser['telefono'] ?? '',
+                'tarea'         => $nombre,
+                'proyecto'      => $proyecto['nombre'],
+                'fecha_fin'     => $fechaFin ? date('d/m/Y', strtotime($fechaFin)) : 'Sin fecha',
+                'actor'         => $user['nombre_completo'],
             ]);
         }
+
+        // Notificar a admins si un USER crea tarea
+        if ($user['rol'] === 'USER') {
+            NotificacionService::dispatchToAdmins(NotificacionService::CAMBIO_ESTADO_TAREA, [
+                'entity_type' => 'tarea',
+                'entity_id'   => $tareaId,
+                'tarea'       => $nombre,
+                'proyecto'    => $proyecto['nombre'],
+                'estado'      => 'Por Hacer (nueva)',
+                'actor'       => $user['nombre_completo'],
+            ]);
+        }
+
+        // Auto-note: tarea created
+        $asignadoNombre = '';
+        if ($usuarioAsignadoId) {
+            $au = Usuario::findById($usuarioAsignadoId);
+            $asignadoNombre = $au['nombre_completo'] ?? '';
+        }
+        $autoMsg = "Tarea creada por {$user['nombre_completo']}.";
+        if ($asignadoNombre) $autoMsg .= " Asignada a: $asignadoNombre.";
+        if ($fechaFin) $autoMsg .= ' Fecha límite: ' . date('d/m/Y', strtotime($fechaFin)) . '.';
+        Nota::createAuto('tarea', $tareaId, $autoMsg, $user['id']);
 
         $this->flash('success', "Tarea \"$nombre\" creada exitosamente.");
         $this->redirect("/proyectos/$proyectoId/tareas");
@@ -166,6 +254,7 @@ class TareasController extends Controller
     public function edit(string $id): void
     {
         $this->requireAuth();
+        $this->requireRole('ADMIN', 'GOD');
         $user  = $this->currentUser();
         $tarea = Tarea::getById((int)$id);
 
@@ -202,6 +291,13 @@ class TareasController extends Controller
             $this->redirect('/proyectos');
         }
 
+        // Validate project access for all roles
+        $proyecto = Proyecto::getById((int)$tarea['proyecto_id']);
+        if (!$proyecto || !Proyecto::checkAccess($proyecto, $user['id'], $user['rol'])) {
+            $this->flash('error', 'No tienes acceso a esta tarea.');
+            $this->redirect('/proyectos');
+        }
+
         $data = [];
 
         if ($user['rol'] === 'USER') {
@@ -230,6 +326,9 @@ class TareasController extends Controller
             if (isset($data['nombre']) && (!Validator::required($data['nombre']) || !Validator::minLength($data['nombre'], 3))) {
                 $errors[] = 'El nombre es requerido (mínimo 3 caracteres).';
             }
+            if (isset($data['descripcion']) && mb_strlen($data['descripcion']) > 2000) {
+                $errors[] = 'La descripción no puede superar los 2000 caracteres.';
+            }
             if (isset($data['prioridad']) && $data['prioridad'] !== '' && !Validator::isValidPrioridad($data['prioridad'])) {
                 $errors[] = 'Prioridad inválida.';
             }
@@ -237,6 +336,9 @@ class TareasController extends Controller
                 $errors[] = 'Estado inválido.';
             }
             if (!empty($errors)) {
+                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+                    $this->json(['ok' => false, 'message' => implode(' ', $errors)], 422);
+                }
                 foreach ($errors as $e) $this->flash('error', $e);
                 $this->redirect("/proyectos/{$tarea['proyecto_id']}/tareas");
             }
@@ -244,6 +346,11 @@ class TareasController extends Controller
 
         $data['updated_by'] = $user['id'];
         Tarea::update((int)$id, $data);
+
+        // If estado changed, propagate up to proyecto
+        if (isset($data['estado'])) {
+            EstadoService::propagarDesdeTarea((int)$id, $user['id']);
+        }
 
         // Notify admins when a USER updates a task
         if ($user['rol'] === 'USER') {
@@ -259,7 +366,23 @@ class TareasController extends Controller
             ]);
         }
 
-        $this->flash('success', 'Tarea actualizada.');
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+            // Fetch refreshed tarea for the response
+            $updatedTarea = Tarea::getById((int)$id);
+            $this->json([
+                'ok'    => true,
+                'tarea' => [
+                    'id'                     => (int)$id,
+                    'nombre'                 => $updatedTarea['nombre'] ?? '',
+                    'descripcion'            => $updatedTarea['descripcion'] ?? '',
+                    'prioridad'              => $updatedTarea['prioridad'] ?? '',
+                    'fecha_fin'              => $updatedTarea['fecha_fin'] ?? '',
+                    'usuario_asignado_id'    => $updatedTarea['usuario_asignado_id'] ?? null,
+                    'usuario_asignado_nombre'=> $updatedTarea['usuario_asignado_nombre'] ?? '',
+                ],
+            ]);
+        }
+        $this->flash('success', 'Tarea actualizada correctamente.');
         $this->redirect("/proyectos/{$tarea['proyecto_id']}/tareas");
     }
 
@@ -280,47 +403,84 @@ class TareasController extends Controller
             $this->json(['ok' => false, 'message' => 'Acceso denegado'], 403);
         }
 
+        // USER can only change estado of tasks assigned to them
+        if ($user['rol'] === 'USER' && (int)($tarea['usuario_asignado_id'] ?? 0) !== (int)$user['id']) {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+                $this->json(['ok' => false, 'message' => 'No tienes acceso a esta tarea.'], 403);
+            }
+            $this->flash('error', 'No tienes acceso a esta tarea.');
+            $this->back();
+        }
+
         $estado = trim($_POST['estado'] ?? '');
         if (!Validator::isValidEstado($estado)) {
             $this->json(['ok' => false, 'message' => 'Estado inválido'], 400);
         }
 
-        Tarea::updateEstado((int)$id, $estado, $user['id']);
-
-        // Notification on change
-        $efectivoUserId = (int)($tarea['usuario_asignado_id'] ?? 0);
-        if ($efectivoUserId && $tarea['estado'] !== $estado) {
-            Notificacion::create([
-                'user_id'     => $efectivoUserId,
-                'type'        => 'cambio_estado_tarea',
-                'title'       => 'Estado de tarea actualizado',
-                'message'     => "La tarea \"{$tarea['nombre']}\" cambió a $estado.",
-                'severity'    => 'info',
-                'channel'     => 'in_app',
-                'entity_type' => 'tarea',
-                'entity_id'   => (int)$id,
-            ]);
+        // Require evidence before marking as terminada
+        if ($estado === 'terminada' && !Evidencia::tieneEvidencia('tarea', (int)$id)) {
+            $this->json(['ok' => false, 'message' => 'Debes adjuntar al menos una evidencia PDF o PNG antes de marcar como terminada.', 'requires_evidencia' => true], 400);
         }
 
-        // Notify admins when a USER changes task status
-        if ($user['rol'] === 'USER' && $tarea['estado'] !== $estado) {
-            $estadoLabel = [
-                'por_hacer' => 'Por Hacer', 'haciendo' => 'Haciendo', 'terminada' => 'Terminada',
-                'enterado'  => 'Enterado',  'ocupado'  => 'Ocupado',  'aceptada'  => 'Aceptada',
-            ];
-            $estadoNombre = $estadoLabel[$estado] ?? $estado;
-            Notificacion::notifyAdmins([
-                'type'        => 'user_estado_tarea',
-                'title'       => 'Estado de tarea cambiado por usuario',
-                'message'     => "El usuario {$user['nombre_completo']} cambió el estado de la tarea \"{$tarea['nombre']}\" a \"$estadoNombre\" en el proyecto \"{$proyecto['nombre']}\".",
-                'severity'    => 'info',
+        Tarea::updateEstado((int)$id, $estado, $user['id']);
+
+        // Propagate state up to proyecto
+        $propagacion = EstadoService::propagarDesdeTarea((int)$id, $user['id']);
+
+        // Auto-note: estado change
+        if ($tarea['estado'] !== $estado) {
+            $estadoLabels = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Terminada',
+                             'enterado'=>'Enterado','ocupado'=>'Ocupado','aceptada'=>'Aceptada'];
+            $oldLbl = $estadoLabels[$tarea['estado']] ?? $tarea['estado'];
+            $newLbl = $estadoLabels[$estado] ?? $estado;
+            Nota::createAuto('tarea', (int)$id,
+                "Estado cambiado de \"$oldLbl\" a \"$newLbl\" por {$user['nombre_completo']}.",
+                $user['id']
+            );
+        }
+
+        // Notificaciones centralizadas por cambio de estado
+        if ($tarea['estado'] !== $estado) {
+            $estadoLabels = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Terminada',
+                             'enterado'=>'Enterado','ocupado'=>'Ocupado','aceptada'=>'Aceptada'];
+            $efectivoUserId = (int)($tarea['usuario_asignado_id'] ?? 0);
+            $baseCtx = [
                 'entity_type' => 'tarea',
                 'entity_id'   => (int)$id,
-            ]);
+                'tarea'       => $tarea['nombre'],
+                'proyecto'    => $proyecto['nombre'],
+                'estado'      => $estadoLabels[$estado] ?? $estado,
+                'actor'       => $user['nombre_completo'],
+                'fecha_fin'   => $tarea['fecha_fin'] ? date('d/m/Y', strtotime($tarea['fecha_fin'])) : 'Sin fecha',
+            ];
+
+            // Notificar al asignado del nuevo estado
+            if ($efectivoUserId) {
+                $assignedUser = Usuario::findById($efectivoUserId);
+                $event = ($estado === 'aceptada') ? NotificacionService::TAREA_ACEPTADA
+                       : (($estado === 'terminada') ? NotificacionService::TAREA_TERMINADA
+                       : NotificacionService::CAMBIO_ESTADO_TAREA);
+                NotificacionService::dispatch($event, array_merge($baseCtx, [
+                    'user_id'       => $efectivoUserId,
+                    'user_nombre'   => $assignedUser['nombre_completo'] ?? '',
+                    'user_telefono' => $assignedUser['telefono'] ?? '',
+                    'nombre'        => $assignedUser['nombre_completo'] ?? '',
+                ]));
+            }
+
+            // Si un USER cambia estado, notificar a admins también
+            if ($user['rol'] === 'USER') {
+                NotificacionService::dispatchToAdmins(NotificacionService::CAMBIO_ESTADO_TAREA, $baseCtx);
+            }
         }
 
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
-            $this->json(['ok' => true, 'estado' => $estado]);
+            $this->json([
+                'ok'             => true,
+                'estado'         => $estado,
+                'proyecto_id'    => $propagacion['proyecto_id'] ?? null,
+                'proyecto_estado'=> $propagacion['proyecto_estado'] ?? null,
+            ]);
         }
 
         $this->redirect("/proyectos/{$tarea['proyecto_id']}/tareas");
@@ -341,6 +501,12 @@ class TareasController extends Controller
         }
 
         $proyectoId = $tarea['proyecto_id'];
+        $proyecto = Proyecto::getById((int)$proyectoId);
+        if (!$proyecto || !Proyecto::checkAccess($proyecto, $user['id'], $user['rol'])) {
+            $this->flash('error', 'No tienes acceso a esta tarea.');
+            $this->back();
+        }
+
         $reason     = trim($_POST['reason'] ?? '');
         Tarea::softDelete((int)$id, $user['id'], $reason);
 

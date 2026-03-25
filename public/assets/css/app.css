@@ -386,3 +386,133 @@ body {
   h1, .h1 { font-size: 1.5rem; }
   h2, .h2 { font-size: 1.25rem; }
 }
+
+/* ---- Quick Actions ---- */
+.btn-xs {
+  --bs-btn-padding-y: 0.1rem;
+  --bs-btn-padding-x: 0.35rem;
+  --bs-btn-font-size: 0.65rem;
+  --bs-btn-border-radius: 0.25rem;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeIn 0.25s ease-out; }
+
+/* ---- Required Field Indicators ---- */
+.form-label .text-danger {
+  font-weight: 700;
+}
+
+/* Highlight required inputs on focus (visual cue) */
+input[required]:not(:focus):not(:valid):not([value=""]),
+select[required]:not(:focus):not(:valid),
+textarea[required]:not(:focus):not(:valid) {
+  border-left: 3px solid var(--bs-primary);
+}
+
+/* Validation states */
+.is-invalid {
+  border-color: #dc3545 !important;
+  box-shadow: 0 0 0 0.15rem rgba(220, 53, 69, 0.15) !important;
+}
+
+.date-validation-warning {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* ---- Danger Button Separation ---- */
+.btn-outline-danger,
+.btn-danger {
+  margin-left: auto;
+}
+
+/* Within card action rows: push delete to far right */
+.card-proyecto .d-flex.gap-2.mt-auto .btn-outline-danger {
+  margin-left: auto;
+}
+
+/* ---- Estado Badge Tooltips ---- */
+.badge-estado-por_hacer  { cursor: help; }
+.badge-estado-haciendo   { cursor: help; }
+.badge-estado-terminada  { cursor: help; }
+.badge-estado-enterado   { cursor: help; }
+.badge-estado-ocupado    { cursor: help; }
+.badge-estado-aceptada   { cursor: help; }
+
+/* ---- Anti-double-submit visual ---- */
+button[disabled][data-submitting="true"] {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+/* ---- Character Counter ---- */
+.char-counter {
+  transition: color 0.2s;
+}
+
+/* ---- Evidencias Panel ---- */
+.evidencias-panel {
+  background: var(--bs-body-bg, #fff);
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.evidencia-item {
+  border-bottom: 1px solid var(--bs-border-color-translucent, rgba(0,0,0,0.05));
+  transition: background-color 0.15s;
+}
+.evidencia-item:last-child {
+  border-bottom: none;
+}
+.evidencia-item:hover {
+  background-color: var(--bs-tertiary-bg, rgba(0,0,0,0.02));
+}
+
+.evidencia-upload-zone {
+  background: var(--bs-tertiary-bg, #f8f9fa);
+  border: 1px dashed var(--bs-border-color, #dee2e6);
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+}
+
+.evidencia-badge-pdf {
+  background-color: #dc3545 !important;
+  color: #fff !important;
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.2rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.evidencia-badge-png {
+  background-color: #198754 !important;
+  color: #fff !important;
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.2rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.evidencia-feedback {
+  font-size: 0.8rem;
+}
+
+.evidencias-panel .evidencia-progress .progress {
+  border-radius: 2px;
+}
+
+[data-bs-theme="dark"] .evidencias-panel {
+  background: var(--bs-body-bg);
+  border-color: var(--bs-border-color);
+}
+[data-bs-theme="dark"] .evidencia-upload-zone {
+  background: var(--bs-tertiary-bg);
+  border-color: var(--bs-border-color);
+}

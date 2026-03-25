@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="<?php echo \App\Core\View::asset('css/app.css'); ?>">
+  <link rel="stylesheet" href="<?php echo \App\Core\View::asset('css/mobile.css'); ?>">
   <style>
     body { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4f46e5 100%); min-height: 100vh; }
     [data-bs-theme="dark"] body { background: linear-gradient(135deg, #0f0e1a 0%, #1e1b4b 50%, #312e81 100%); }
@@ -21,7 +22,7 @@
     <i class="bi bi-moon-fill"></i>
   </button>
 
-  <div class="auth-card">
+  <div class="auth-card login-container">
     <?php echo $content; ?>
   </div>
 

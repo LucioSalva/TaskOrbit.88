@@ -1,4 +1,39 @@
 <?php
+/**
+ * ================================================================
+ *  TASKORBIT
+ *  Humberto Salvador Ruiz Lucio
+ * ================================================================
+ *  Plataforma privada de gestión de proyectos, tareas,
+ *  subtareas, procesos y colaboración interna.
+ *
+ *  Módulo: Modelos de Datos
+ *  Archivo: Usuario.php
+ *
+ *  © 2025–2026 Humberto Salvador Ruiz Lucio.
+ *  Todos los derechos reservados.
+ *
+ *  PROPIEDAD INTELECTUAL Y CONFIDENCIALIDAD:
+ *  El presente código fuente, su estructura lógica,
+ *  funcionalidad, arquitectura, diseño de datos,
+ *  documentación y componentes asociados forman parte
+ *  de un sistema propietario y confidencial.
+ *
+ *  Queda prohibida su copia, reproducción, distribución,
+ *  adaptación, descompilación, comercialización,
+ *  divulgación o utilización no autorizada, total o parcial,
+ *  por cualquier medio, sin el consentimiento previo
+ *  y por escrito de su titular.
+ *
+ *  El uso no autorizado de este software podrá dar lugar
+ *  a las acciones legales civiles, mercantiles, administrativas
+ *  o penales correspondientes conforme a la legislación aplicable
+ *  en los Estados Unidos Mexicanos.
+ *
+ *  Uso interno exclusivo.
+ *  Documento/código confidencial.
+ * ================================================================
+ */
 declare(strict_types=1);
 
 namespace App\Models;
@@ -11,8 +46,14 @@ class Usuario
     {
         $db = Database::getInstance();
         return $db->fetchOne(
-            'SELECT id, username, password_hash, nombre_completo, rol, activo
-             FROM vw_login WHERE username = ?',
+            'SELECT u.id, u.username, u.password_hash, u.nombre_completo,
+                    UPPER(r.nombre) AS rol, u.activo,
+                    COALESCE(u.telefono, \'\') AS telefono
+             FROM usuarios u
+             JOIN usuarios_roles ur ON ur.usuario_id = u.id
+             JOIN roles r           ON r.id = ur.rol_id
+             WHERE u.username = ?
+             LIMIT 1',
             [$username]
         );
     }
@@ -88,17 +129,17 @@ class Usuario
                 [$userId, $roleRow['id']]
             );
 
-            self::logAudit($data['created_by'] ?? null, 'CREATE_USER', $userId, [
-                'username' => $data['username'],
-                'rol'      => $data['rol'],
-            ]);
-
             $db->commit();
-            return $userId;
         } catch (\Throwable $e) {
             $db->rollback();
             throw $e;
         }
+
+        self::logAudit($data['created_by'] ?? null, 'CREATE_USER', $userId, [
+            'username' => $data['username'],
+            'rol'      => $data['rol'],
+        ]);
+        return $userId;
     }
 
     public static function update(int $id, array $data): bool
@@ -141,13 +182,15 @@ class Usuario
                 }
             }
 
-            self::logAudit($data['updated_by'] ?? null, 'UPDATE_USER', $id, $data);
             $db->commit();
-            return true;
         } catch (\Throwable $e) {
             $db->rollback();
             throw $e;
         }
+
+        $auditData = array_diff_key($data, array_flip(['password', 'password_hash']));
+        self::logAudit($data['updated_by'] ?? null, 'UPDATE_USER', $id, $auditData);
+        return true;
     }
 
     public static function toggleEstado(int $id, bool $activo): bool

@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS proyectos (
   fecha_inicio         DATE           DEFAULT NULL,
   fecha_fin            DATE           DEFAULT NULL,
   estimacion_minutos   INT            DEFAULT NULL,
+  en_riesgo            BOOLEAN        NOT NULL DEFAULT FALSE,
   usuario_asignado_id  INT            DEFAULT NULL REFERENCES usuarios(id) ON DELETE SET NULL,
   created_by           INT            NOT NULL     REFERENCES usuarios(id) ON DELETE RESTRICT,
   deleted_at           TIMESTAMPTZ    DEFAULT NULL,
@@ -84,6 +85,7 @@ CREATE TABLE IF NOT EXISTS tareas (
   fecha_inicio         DATE           DEFAULT NULL,
   fecha_fin            DATE           DEFAULT NULL,
   estimacion_minutos   INT            DEFAULT NULL,
+  en_riesgo            BOOLEAN        NOT NULL DEFAULT FALSE,
   usuario_asignado_id  INT            DEFAULT NULL REFERENCES usuarios(id) ON DELETE SET NULL,
   created_by           INT            NOT NULL     REFERENCES usuarios(id) ON DELETE RESTRICT,
   deleted_at           TIMESTAMPTZ    DEFAULT NULL,
@@ -251,6 +253,7 @@ SELECT
   p.fecha_inicio,
   p.fecha_fin,
   p.estimacion_minutos,
+  p.en_riesgo,
   p.usuario_asignado_id,
   u.nombre_completo  AS usuario_asignado_nombre,
   p.created_by,
@@ -260,7 +263,7 @@ FROM proyectos p
 LEFT JOIN usuarios u ON u.id = p.usuario_asignado_id
 WHERE p.deleted_at IS NULL;
 
-COMMENT ON VIEW vw_proyectos IS 'Proyectos activos con nombre del usuario asignado';
+COMMENT ON VIEW vw_proyectos IS 'Proyectos activos con nombre del usuario asignado y flag en_riesgo';
 
 -- vw_tareas: usada en ProyectosController::show, DashboardController y NotasController
 CREATE OR REPLACE VIEW vw_tareas AS

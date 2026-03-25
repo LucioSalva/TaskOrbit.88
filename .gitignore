@@ -1,0 +1,11 @@
+.env
+.env.local
+.env.*.local
+
+/vendor/
+/storage/evidencias/*
+!/storage/evidencias/.gitkeep
+
+/public/db-test.php
+
+*.log

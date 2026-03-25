@@ -1,4 +1,39 @@
 <?php
+/**
+ * ================================================================
+ *  TASKORBIT
+ *  Humberto Salvador Ruiz Lucio
+ * ================================================================
+ *  Plataforma privada de gestión de proyectos, tareas,
+ *  subtareas, procesos y colaboración interna.
+ *
+ *  Módulo: Modelos de Datos
+ *  Archivo: Notificacion.php
+ *
+ *  © 2025–2026 Humberto Salvador Ruiz Lucio.
+ *  Todos los derechos reservados.
+ *
+ *  PROPIEDAD INTELECTUAL Y CONFIDENCIALIDAD:
+ *  El presente código fuente, su estructura lógica,
+ *  funcionalidad, arquitectura, diseño de datos,
+ *  documentación y componentes asociados forman parte
+ *  de un sistema propietario y confidencial.
+ *
+ *  Queda prohibida su copia, reproducción, distribución,
+ *  adaptación, descompilación, comercialización,
+ *  divulgación o utilización no autorizada, total o parcial,
+ *  por cualquier medio, sin el consentimiento previo
+ *  y por escrito de su titular.
+ *
+ *  El uso no autorizado de este software podrá dar lugar
+ *  a las acciones legales civiles, mercantiles, administrativas
+ *  o penales correspondientes conforme a la legislación aplicable
+ *  en los Estados Unidos Mexicanos.
+ *
+ *  Uso interno exclusivo.
+ *  Documento/código confidencial.
+ * ================================================================
+ */
 declare(strict_types=1);
 
 namespace App\Models;
@@ -9,18 +44,42 @@ class Notificacion
 {
     public static function getByUser(int $userId, int $limit = 20): array
     {
-        $db = Database::getInstance();
-        return $db->fetchAll(
-            'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
+        $db   = Database::getInstance();
+        $rows = $db->fetchAll(
+            'SELECT
+                id,
+                user_id,
+                type,
+                title,
+                message,
+                severity,
+                channel,
+                entity_type,
+                entity_id,
+                CASE WHEN "read" = true THEN 1 ELSE 0 END AS is_read,
+                delivered_at,
+                created_at
+             FROM notifications
+             WHERE user_id = ?
+             ORDER BY created_at DESC
+             LIMIT ?',
             [$userId, $limit]
         );
+
+        // Normalise is_read to a plain PHP bool for consistent JS consumption.
+        foreach ($rows as &$row) {
+            $row['is_read'] = (bool)$row['is_read'];
+        }
+        unset($row);
+
+        return $rows;
     }
 
     public static function getUnreadCount(int $userId): int
     {
         $db  = Database::getInstance();
         $row = $db->fetchOne(
-            'SELECT COUNT(*)::int AS total FROM notifications WHERE user_id = ? AND read = FALSE',
+            'SELECT COUNT(*)::int AS total FROM notifications WHERE user_id = ? AND "read" = FALSE',
             [$userId]
         );
         return $row['total'] ?? 0;
@@ -51,7 +110,7 @@ class Notificacion
     {
         $db = Database::getInstance();
         return $db->execute(
-            'UPDATE notifications SET read = TRUE, delivered_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+            'UPDATE notifications SET "read" = TRUE, delivered_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
             [$id, $userId]
         );
     }
@@ -60,7 +119,7 @@ class Notificacion
     {
         $db = Database::getInstance();
         return $db->execute(
-            'UPDATE notifications SET read = TRUE, delivered_at = CURRENT_TIMESTAMP WHERE user_id = ? AND read = FALSE',
+            'UPDATE notifications SET "read" = TRUE, delivered_at = CURRENT_TIMESTAMP WHERE user_id = ? AND "read" = FALSE',
             [$userId]
         );
     }

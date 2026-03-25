@@ -1,4 +1,39 @@
 <?php
+/**
+ * ================================================================
+ *  TASKORBIT
+ *  Humberto Salvador Ruiz Lucio
+ * ================================================================
+ *  Plataforma privada de gestión de proyectos, tareas,
+ *  subtareas, procesos y colaboración interna.
+ *
+ *  Módulo: Administración de Usuarios
+ *  Archivo: UsuariosController.php
+ *
+ *  © 2025–2026 Humberto Salvador Ruiz Lucio.
+ *  Todos los derechos reservados.
+ *
+ *  PROPIEDAD INTELECTUAL Y CONFIDENCIALIDAD:
+ *  El presente código fuente, su estructura lógica,
+ *  funcionalidad, arquitectura, diseño de datos,
+ *  documentación y componentes asociados forman parte
+ *  de un sistema propietario y confidencial.
+ *
+ *  Queda prohibida su copia, reproducción, distribución,
+ *  adaptación, descompilación, comercialización,
+ *  divulgación o utilización no autorizada, total o parcial,
+ *  por cualquier medio, sin el consentimiento previo
+ *  y por escrito de su titular.
+ *
+ *  El uso no autorizado de este software podrá dar lugar
+ *  a las acciones legales civiles, mercantiles, administrativas
+ *  o penales correspondientes conforme a la legislación aplicable
+ *  en los Estados Unidos Mexicanos.
+ *
+ *  Uso interno exclusivo.
+ *  Documento/código confidencial.
+ * ================================================================
+ */
 declare(strict_types=1);
 
 namespace App\Controllers;
@@ -12,7 +47,7 @@ class UsuariosController extends Controller
     public function index(): void
     {
         $this->requireAuth();
-        $this->requireRole('GOD', 'ADMIN');
+        $this->requireRole('GOD');
 
         $usuarios = Usuario::getAll();
         $this->view('usuarios/index', [
@@ -24,7 +59,7 @@ class UsuariosController extends Controller
     public function store(): void
     {
         $this->requireAuth();
-        $this->requireRole('GOD', 'ADMIN');
+        $this->requireRole('GOD');
         CSRF::verifyRequest();
 
         $currentUser = $this->currentUser();
@@ -80,7 +115,7 @@ class UsuariosController extends Controller
     public function update(string $id): void
     {
         $this->requireAuth();
-        $this->requireRole('GOD', 'ADMIN');
+        $this->requireRole('GOD');
         CSRF::verifyRequest();
 
         $currentUser = $this->currentUser();
@@ -143,7 +178,7 @@ class UsuariosController extends Controller
     public function toggleEstado(string $id): void
     {
         $this->requireAuth();
-        $this->requireRole('GOD', 'ADMIN');
+        $this->requireRole('GOD');
         CSRF::verifyRequest();
 
         $currentUser = $this->currentUser();
@@ -184,8 +219,20 @@ class UsuariosController extends Controller
             $this->redirect('/admin/usuarios');
         }
 
-        Usuario::delete((int)$id);
-        $this->flash('success', "Usuario \"{$target['username']}\" eliminado.");
+        try {
+            Usuario::delete((int)$id);
+            $this->flash('success', "Usuario \"{$target['username']}\" eliminado.");
+        } catch (\PDOException $e) {
+            if ($e->getCode() === '23503') {
+                $this->flash('error', 'No se puede eliminar este usuario porque tiene proyectos, tareas o datos asociados. Desactívalo en su lugar.');
+            } else {
+                error_log('[UsuariosController::destroy] PDOException: ' . $e->getMessage());
+                $this->flash('error', 'Ocurrió un error al intentar eliminar el usuario.');
+            }
+        } catch (\Throwable $e) {
+            error_log('[UsuariosController::destroy] Error: ' . $e->getMessage());
+            $this->flash('error', 'Ocurrió un error inesperado.');
+        }
         $this->redirect('/admin/usuarios');
     }
 }
