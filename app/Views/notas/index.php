@@ -24,7 +24,7 @@ $scopeIcons  = ['personal'=>'bi-person','proyecto'=>'bi-kanban','tarea'=>'bi-lis
 
 <!-- Formulario nueva nota -->
 <div class="card mb-4">
-  <div class="card-header fw-semibold" data-bs-toggle="collapse" data-bs-target="#form-nota-collapse" style="cursor:pointer">
+  <div class="card-header fw-semibold cur-pointer" data-bs-toggle="collapse" data-bs-target="#form-nota-collapse">
     <i class="bi bi-plus-circle me-2 text-primary"></i>Nueva nota
     <i class="bi bi-chevron-down float-end"></i>
   </div>
@@ -41,7 +41,7 @@ $scopeIcons  = ['personal'=>'bi-person','proyecto'=>'bi-kanban','tarea'=>'bi-lis
               <option value="tarea">De Tarea</option>
             </select>
           </div>
-          <div class="col-12 col-md-4" id="nota-ref-container" style="display:none">
+          <div class="col-12 col-md-4 d-none" id="nota-ref-container">
             <label class="form-label fw-semibold small">Referencia</label>
             <select name="referencia_id" id="nota-referencia" class="form-select form-select-sm">
               <option value="">Selecciona...</option>
@@ -100,7 +100,7 @@ $scopeIcons  = ['personal'=>'bi-person','proyecto'=>'bi-kanban','tarea'=>'bi-lis
           <?php if($nota['titulo']??''): ?>
           <h6 class="fw-semibold mb-2"><?php echo $e($nota['titulo']); ?></h6>
           <?php endif; ?>
-          <p class="small mb-2" style="white-space:pre-line"><?php echo nl2br($e($nota['contenido'])); ?></p>
+          <p class="small mb-2 ws-pre-line"><?php echo nl2br($e($nota['contenido'])); ?></p>
           <div class="d-flex align-items-center justify-content-between mt-auto">
             <small class="text-muted">
               <i class="bi bi-person me-1"></i><?php echo $e($nota['autor_nombre']??''); ?>
@@ -130,5 +130,5 @@ $scopeIcons  = ['personal'=>'bi-person','proyecto'=>'bi-kanban','tarea'=>'bi-lis
 <div id="notas-data"
   data-proyectos="<?php echo htmlspecialchars(json_encode(array_values(array_map(fn($p) => ['id' => $p['id'], 'nombre' => $p['nombre']], $proyectos ?? [])), JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>"
   data-tareas="<?php echo htmlspecialchars(json_encode(array_values(array_map(fn($t) => ['id' => $t['id'], 'nombre' => $t['nombre'], 'proyecto_id' => $t['proyecto_id']], $tareas ?? [])), JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>"
-  style="display:none"></div>
+  class="d-none"></div>
 <script src="<?php echo \App\Core\View::asset('js/notas.js'); ?>"></script>

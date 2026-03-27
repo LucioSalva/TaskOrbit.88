@@ -80,7 +80,7 @@ $formId  = 'nota-form-' . $notasScope . '-' . $notasRefId;
   <div id="<?php echo $e($listId); ?>" class="notas-list">
     <?php if (empty($notas)): ?>
     <div class="text-center py-3 text-muted small notas-empty-msg" id="<?php echo $e($listId); ?>-empty">
-      <i class="bi bi-journal d-block mb-1" style="font-size:1.4rem"></i>
+      <i class="bi bi-journal d-block mb-1 icon-sm"></i>
       Sin notas registradas.
     </div>
     <?php else: foreach ($notas as $nota):
@@ -97,9 +97,9 @@ $formId  = 'nota-form-' . $notasScope . '-' . $notasRefId;
          data-nota-id="<?php echo $notaId; ?>">
 
       <div class="d-flex align-items-start justify-content-between gap-1 mb-1">
-        <div class="flex-fill" style="min-width:0">
+        <div class="flex-fill min-w-0">
           <?php if ($isPinned): ?><i class="bi bi-pin-fill text-warning me-1" title="Fijada"></i><?php endif; ?>
-          <span class="badge <?php echo $e($tipoInfo['class']); ?> badge-sm" style="font-size:0.65rem"><?php echo $e($tipoInfo['label']); ?></span>
+          <span class="badge <?php echo $e($tipoInfo['class']); ?> badge-sm text-2xs"><?php echo $e($tipoInfo['label']); ?></span>
           <?php if ($nota['titulo'] ?? ''): ?>
           <strong class="small ms-1 nota-titulo-display"><?php echo $e($nota['titulo']); ?></strong>
           <?php endif; ?>
@@ -109,25 +109,24 @@ $formId  = 'nota-form-' . $notasScope . '-' . $notasRefId;
           <form method="POST" action="<?php echo $appUrl; ?>/notas/<?php echo $notaId; ?>/pin"
                 class="nota-pin-form d-inline" data-nota-id="<?php echo $notaId; ?>">
             <?php echo \App\Helpers\CSRF::tokenField(); ?>
-            <button type="submit" class="btn btn-link btn-sm p-0 <?php echo $isPinned ? 'text-warning' : 'text-muted'; ?>"
-                    title="<?php echo $isPinned ? 'Desfijar' : 'Fijar'; ?>" style="font-size:0.75rem">
+            <button type="submit" class="btn btn-link btn-sm p-0 <?php echo $isPinned ? 'text-warning' : 'text-muted'; ?> text-xs-custom"
+                    title="<?php echo $isPinned ? 'Desfijar' : 'Fijar'; ?>">
               <i class="bi <?php echo $isPinned ? 'bi-pin-fill' : 'bi-pin'; ?>"></i>
             </button>
           </form>
           <?php endif; ?>
           <?php if ($canEdit && !$esAuto): ?>
-          <button type="button" class="btn btn-link btn-sm p-0 text-muted nota-edit-btn"
+          <button type="button" class="btn btn-link btn-sm p-0 text-muted nota-edit-btn text-xs-custom"
                   data-nota-id="<?php echo $notaId; ?>"
                   data-titulo="<?php echo $e($nota['titulo'] ?? ''); ?>"
                   data-contenido="<?php echo $e($nota['contenido']); ?>"
-                  title="Editar" style="font-size:0.75rem">
+                  title="Editar">
             <i class="bi bi-pencil"></i>
           </button>
           <?php endif; ?>
           <?php if ($canDelete): ?>
-          <button type="button" class="btn btn-link btn-sm p-0 text-danger"
+          <button type="button" class="btn btn-link btn-sm p-0 text-danger text-xs-custom"
                   title="Eliminar nota"
-                  style="font-size:0.75rem"
                   data-delete-url="<?php echo $appUrl; ?>/notas/<?php echo $notaId; ?>/eliminar"
                   data-delete-title="Eliminar nota?"
                   data-delete-msg="Se eliminara esta nota. Esta accion no se puede deshacer."
@@ -152,15 +151,15 @@ $formId  = 'nota-form-' . $notasScope . '-' . $notasRefId;
           <textarea name="contenido" class="form-control form-control-sm mb-1"
                     rows="2" required><?php echo $e($nota['contenido']); ?></textarea>
           <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-primary btn-sm" style="font-size:0.75rem">Guardar</button>
-            <button type="button" class="btn btn-outline-secondary btn-sm nota-cancel-edit"
-                    data-nota-id="<?php echo $notaId; ?>" style="font-size:0.75rem">Cancelar</button>
+            <button type="submit" class="btn btn-primary btn-sm text-xs-custom">Guardar</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm nota-cancel-edit text-xs-custom"
+                    data-nota-id="<?php echo $notaId; ?>">Cancelar</button>
           </div>
         </form>
       </div>
       <?php endif; ?>
 
-      <div class="text-muted mt-1" style="font-size:0.7rem">
+      <div class="text-muted mt-1 fs-xs">
         <i class="bi bi-person me-1"></i><?php echo $e($nota['autor_nombre'] ?? 'Sistema'); ?>
         &bull;
         <?php echo \App\Helpers\DateHelper::formatDatetime($nota['created_at'] ?? ''); ?>

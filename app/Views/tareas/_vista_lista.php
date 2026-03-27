@@ -78,7 +78,7 @@ $taskFilterCount = ($filterEstado ? 1 : 0) + ($filterPrioridad ? 1 : 0) + ($filt
   <?php endif; ?>
 </form>
 </div>
-<script>
+<script nonce="<?= CSP_NONCE ?>">
 document.getElementById('tarea-filter-toggle')?.addEventListener('click', function() {
   document.getElementById('tarea-filter-content')?.classList.toggle('show');
 });
@@ -105,12 +105,12 @@ document.getElementById('tarea-filter-toggle')?.addEventListener('click', functi
     <div class="card-header d-flex align-items-center justify-content-between gap-2 py-2">
       <div class="d-flex align-items-center gap-2 flex-fill min-w-0">
         <button class="btn btn-sm btn-outline-secondary p-1" type="button" data-bs-toggle="collapse" data-bs-target="#subtareas-<?php echo $e($tarea['id']); ?>">
-          <i class="bi bi-chevron-down" style="font-size:.75rem"></i>
+          <i class="bi bi-chevron-down text-xs-custom"></i>
         </button>
         <div class="min-w-0">
           <div class="fw-semibold text-truncate"><?php echo $e($tarea['nombre']); ?></div>
           <?php if($tarea['usuario_asignado_nombre']??''): ?>
-          <div class="text-muted" style="font-size:.75rem"><i class="bi bi-person me-1"></i><?php echo $e($tarea['usuario_asignado_nombre']); ?></div>
+          <div class="text-muted text-xs-custom"><i class="bi bi-person me-1"></i><?php echo $e($tarea['usuario_asignado_nombre']); ?></div>
           <?php endif; ?>
         </div>
       </div>
@@ -145,10 +145,16 @@ document.getElementById('tarea-filter-toggle')?.addEventListener('click', functi
 
       <!-- Actions row -->
       <div class="d-flex align-items-center gap-1 flex-shrink-0 flex-wrap">
-        <!-- Quick estado change -->
+        <!-- Quick estado change (only if user can change this task's status) -->
+        <?php
+        $canChangeEstado = ($role === 'GOD') ||
+                           (in_array($role, ['ADMIN', 'USER']) &&
+                            (int)($tarea['usuario_asignado_id'] ?? 0) === (int)($user['id'] ?? 0));
+        ?>
+        <?php if ($canChangeEstado): ?>
         <div class="estado-btn-group btn-group btn-group-sm">
           <?php foreach(['por_hacer'=>'PH','haciendo'=>'H','terminada'=>'T'] as $est=>$lbl): ?>
-          <form method="POST" action="<?php echo $appUrl; ?>/tareas/<?php echo $e($tarea['id']); ?>/estado" class="d-inline" onsubmit="return changeEstado(this)">
+          <form method="POST" action="<?php echo $appUrl; ?>/tareas/<?php echo $e($tarea['id']); ?>/estado" class="d-inline" data-change-estado>
             <?php echo \App\Helpers\CSRF::tokenField(); ?>
             <input type="hidden" name="estado" value="<?php echo $e($est); ?>">
             <button type="submit" class="btn btn-outline-secondary <?php echo $tarea['estado']===$est?'active-estado':''; ?>" data-estado="<?php echo $e($est); ?>" title="<?php echo $e($estadoLabel[$est]); ?>">
@@ -157,23 +163,26 @@ document.getElementById('tarea-filter-toggle')?.addEventListener('click', functi
           </form>
           <?php endforeach; ?>
         </div>
+        <?php endif; ?>
 
         <?php if (in_array($role, ['ADMIN','GOD'])): ?>
         <button type="button"
           class="btn btn-xs btn-outline-primary"
           title="Edicion rapida"
-          onclick="openQuickEdit('tarea', <?php echo $e($tarea['id']); ?>, {
-            nombre: <?php echo json_encode($tarea['nombre']); ?>,
-            descripcion: <?php echo json_encode($tarea['descripcion'] ?? ''); ?>,
-            fechaFin: <?php echo json_encode($tarea['fecha_fin'] ?? ''); ?>,
-            prioridad: <?php echo json_encode($tarea['prioridad'] ?? 'media'); ?>
-          })">
+          data-action="quick-edit"
+          data-entity-type="tarea"
+          data-entity-id="<?php echo (int)$tarea['id']; ?>"
+          data-entity-data="<?php echo htmlspecialchars(json_encode(['nombre'=>$tarea['nombre'],'descripcion'=>$tarea['descripcion']??'','fechaFin'=>$tarea['fecha_fin']??'','prioridad'=>$tarea['prioridad']??'media']), ENT_QUOTES); ?>">
           <i class="bi bi-pencil-square"></i>
         </button>
         <button type="button"
           class="btn btn-xs btn-outline-secondary"
           title="Reasignar"
-          onclick="openQuickAssign('tarea', <?php echo $e($tarea['id']); ?>, <?php echo (int)($tarea['usuario_asignado_id'] ?? 0); ?>, <?php echo json_encode($tarea['nombre']); ?>)">
+          data-action="quick-assign"
+          data-entity-type="tarea"
+          data-entity-id="<?php echo (int)$tarea['id']; ?>"
+          data-assignee-id="<?php echo (int)($tarea['usuario_asignado_id']??0); ?>"
+          data-entity-name="<?php echo htmlspecialchars($tarea['nombre'], ENT_QUOTES); ?>">
           <i class="bi bi-person-check"></i>
         </button>
         <a href="<?php echo $appUrl; ?>/tareas/<?php echo $e($tarea['id']); ?>/editar" class="btn btn-xs btn-outline-warning"><i class="bi bi-pencil"></i></a>
@@ -188,7 +197,10 @@ document.getElementById('tarea-filter-toggle')?.addEventListener('click', functi
         <button type="button"
           class="btn btn-xs btn-outline-info"
           title="Nota rapida"
-          onclick="openQuickNota('tarea', <?php echo $e($tarea['id']); ?>, <?php echo json_encode($tarea['nombre']); ?>)">
+          data-action="quick-nota"
+          data-entity-type="tarea"
+          data-entity-id="<?php echo (int)$tarea['id']; ?>"
+          data-entity-name="<?php echo htmlspecialchars($tarea['nombre'], ENT_QUOTES); ?>">
           <i class="bi bi-sticky"></i>
         </button>
       </div>
@@ -249,25 +261,32 @@ document.getElementById('tarea-filter-toggle')?.addEventListener('click', functi
             <div class="flex-fill">
               <span class="subtarea-nombre small fw-medium"><?php echo $e($sub['nombre']); ?></span>
               <?php if($sub['descripcion']??''): ?>
-              <div class="text-muted" style="font-size:.75rem"><?php echo $e($sub['descripcion']); ?></div>
+              <div class="text-muted fs-xs2"><?php echo $e($sub['descripcion']); ?></div>
               <?php endif; ?>
             </div>
             <div class="d-flex align-items-center gap-1 flex-shrink-0">
-              <span class="badge estado-badge badge-estado-<?php echo $e($sub['estado']); ?>" style="font-size:.7rem">
+              <span class="badge estado-badge badge-estado-<?php echo $e($sub['estado']); ?> text-xxs">
                 <?php echo $e($estadoLabel[$sub['estado']]??$sub['estado']); ?>
               </span>
-              <!-- Quick subtarea estado -->
+              <!-- Quick subtarea estado (only if user can change this task's status) -->
+              <?php
+              $canChangeSubEstado = ($role === 'GOD') ||
+                                    (in_array($role, ['ADMIN', 'USER']) &&
+                                     (int)($tarea['usuario_asignado_id'] ?? 0) === (int)($user['id'] ?? 0));
+              ?>
+              <?php if ($canChangeSubEstado): ?>
               <div class="btn-group btn-group-sm">
                 <?php foreach(['por_hacer'=>'PH','haciendo'=>'H','terminada'=>'T'] as $est=>$lbl): ?>
-                <form method="POST" action="<?php echo $appUrl; ?>/subtareas/<?php echo $e($sub['id']); ?>/estado" class="d-inline" onsubmit="return changeEstado(this)">
+                <form method="POST" action="<?php echo $appUrl; ?>/subtareas/<?php echo $e($sub['id']); ?>/estado" class="d-inline" data-change-estado>
                   <?php echo \App\Helpers\CSRF::tokenField(); ?>
                   <input type="hidden" name="estado" value="<?php echo $e($est); ?>">
-                  <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1 <?php echo $sub['estado']===$est?'active-estado':''; ?>" data-estado="<?php echo $e($est); ?>" title="<?php echo $e($estadoLabel[$est]); ?>" style="font-size:.7rem">
+                  <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1 fs-xs <?php echo $sub['estado']===$est?'active-estado':''; ?>" data-estado="<?php echo $e($est); ?>" title="<?php echo $e($estadoLabel[$est]); ?>">
                     <?php echo $e($lbl); ?>
                   </button>
                 </form>
                 <?php endforeach; ?>
               </div>
+              <?php endif; ?>
               <?php if (in_array($role, ['ADMIN','GOD'])): ?>
               <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1"
                 title="Eliminar subtarea"
@@ -282,7 +301,7 @@ document.getElementById('tarea-filter-toggle')?.addEventListener('click', functi
           </div>
           <!-- Subtarea evidencias (collapsible) -->
           <div class="mt-1">
-            <button class="btn btn-link btn-sm p-0 text-muted" style="font-size:.7rem" type="button"
+            <button class="btn btn-link btn-sm p-0 text-muted fs-xs" type="button"
                     data-bs-toggle="collapse" data-bs-target="#evid-sub-<?php echo $e($sub['id']); ?>">
               <i class="bi bi-paperclip me-1"></i>Evidencias
             </button>

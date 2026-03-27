@@ -12,7 +12,7 @@ $p      = $proyecto ?? [];
   </ol>
 </nav>
 
-<div class="card" style="max-width:700px">
+<div class="card mw-700">
   <div class="card-header fw-semibold">
     <i class="bi bi-plus-circle me-2 text-primary"></i>Nueva Tarea en <strong><?php echo $e($p['nombre']??''); ?></strong>
   </div>

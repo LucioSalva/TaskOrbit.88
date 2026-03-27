@@ -1,5 +1,5 @@
 <div class="text-center py-5">
-  <div style="font-size:5rem;color:#ef4444;margin-bottom:1rem">
+  <div class="access-denied-icon">
     <i class="bi bi-shield-x"></i>
   </div>
   <h1 class="h2 fw-bold text-danger">Acceso Denegado</h1>

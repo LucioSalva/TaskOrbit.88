@@ -20,16 +20,12 @@ use App\Core\Database;
  *       │
  *       ├─ sendInApp()              ← Canal: notificación interna
  *       │
- *       ├─ sendWhatsApp()           ← Canal: WhatsApp (si teléfono disponible)
- *       │
  *       └─ logToNotifLogs()         ← Registro de auditoría y deduplicación
  *
  * ─── REGLAS ANTI-RUIDO ───────────────────────────────────────────────────────
  *  - Mismo evento + entidad + usuario → bloqueado dentro de la ventana definida
  *  - Entidades terminadas/aceptadas → nunca reciben alertas de vencimiento/inactividad
  *  - Usuarios inactivos (activo=false) → salteados
- *  - WhatsApp opcional: sin teléfono → solo in-app, sin error
- *  - Canal WhatsApp que falla → registra error, no rompe el flujo
  *
  * ─── VENTANAS DE DEDUPLICACIÓN (horas) ──────────────────────────────────────
  *  Eventos de asignación        : 1 h
@@ -38,9 +34,8 @@ use App\Core\Database;
  *  Inactividad / sin iniciar    : 48 h
  *  Escalamiento                 : 48 h
  *
- * ─── CANALES ─────────────────────────────────────────────────────────────────
+ * ─── CANAL ───────────────────────────────────────────────────────────────────
  *  in_app   → tabla notifications (siempre, si no hay duplicado)
- *  whatsapp → WhatsAppService (si usuario tiene teléfono y evento lo requiere)
  */
 class NotificacionService
 {
@@ -93,21 +88,6 @@ class NotificacionService
         self::PROYECTO_EN_RIESGO      => 24,
     ];
 
-    /**
-     * Eventos que deben enviarse también por WhatsApp (si hay teléfono).
-     */
-    private static array $whatsappEvents = [
-        self::TAREA_ASIGNADA,
-        self::TAREA_REASIGNADA,
-        self::SUBTAREA_ASIGNADA,
-        self::PROYECTO_ASIGNADO,
-        self::TAREA_PROXIMA_VENCER,
-        self::TAREA_VENCIDA,
-        self::TAREA_TERMINADA,
-        self::TAREA_ESCALADA,
-        self::PROYECTO_EN_RIESGO,
-    ];
-
     // ── Punto de entrada principal ────────────────────────────────────────────
 
     /**
@@ -117,7 +97,6 @@ class NotificacionService
      * @param array  $context    Datos del evento:
      *   - user_id       (int)     destinatario
      *   - user_nombre   (string)  nombre del destinatario
-     *   - user_telefono (string)  teléfono del destinatario (puede ser null)
      *   - entity_type   (string)  'tarea' | 'subtarea' | 'proyecto'
      *   - entity_id     (int)     ID de la entidad
      *   - tarea         (string)  nombre de la tarea
@@ -132,7 +111,7 @@ class NotificacionService
     public static function dispatch(string $event, array $context): void
     {
         try {
-            $userId    = (int)($context['user_id'] ?? 0);
+            $userId     = (int)($context['user_id'] ?? 0);
             $entityType = $context['entity_type'] ?? 'tarea';
             $entityId   = (int)($context['entity_id'] ?? 0);
 
@@ -157,16 +136,6 @@ class NotificacionService
             // 4. Log in-app
             self::logToNotifLogs($event, $entityType, $entityId, $userId, 'in_app', $notifId, 'sent');
 
-            // 5. WhatsApp (si aplica y hay teléfono)
-            if (in_array($event, self::$whatsappEvents, true)) {
-                $telefono = trim($context['user_telefono'] ?? '');
-                if ($telefono !== '') {
-                    $whatsappOk = self::sendWhatsApp($telefono, $msg['body']);
-                    $status     = $whatsappOk ? 'sent' : 'failed';
-                    self::logToNotifLogs($event, $entityType, $entityId, $userId, 'whatsapp', null, $status);
-                }
-            }
-
         } catch (\Throwable $e) {
             // Las notificaciones nunca deben romper el flujo principal
             error_log('[NotificacionService] Error en dispatch: ' . $e->getMessage());
@@ -181,7 +150,7 @@ class NotificacionService
         try {
             $db     = Database::getInstance();
             $admins = $db->fetchAll(
-                "SELECT u.id, u.nombre_completo, u.telefono
+                "SELECT u.id, u.nombre_completo
                  FROM usuarios u
                  JOIN usuarios_roles ur ON ur.usuario_id = u.id
                  JOIN roles r ON r.id = ur.rol_id
@@ -190,9 +159,8 @@ class NotificacionService
 
             foreach ($admins as $admin) {
                 self::dispatch($event, array_merge($context, [
-                    'user_id'       => $admin['id'],
-                    'user_nombre'   => $admin['nombre_completo'],
-                    'user_telefono' => $admin['telefono'] ?? '',
+                    'user_id'     => $admin['id'],
+                    'user_nombre' => $admin['nombre_completo'],
                 ]));
             }
         } catch (\Throwable $e) {
@@ -234,21 +202,6 @@ class NotificacionService
         } catch (\Throwable $e) {
             error_log('[NotificacionService] Error in-app: ' . $e->getMessage());
             return null;
-        }
-    }
-
-    /**
-     * Envía mensaje por WhatsApp.
-     * No lanza excepciones: fallo silencioso con log.
-     */
-    private static function sendWhatsApp(string $telefono, string $mensaje): bool
-    {
-        try {
-            $ws = new WhatsAppService();
-            return $ws->sendGenericMessage($telefono, $mensaje);
-        } catch (\Throwable $e) {
-            error_log('[NotificacionService] Error WhatsApp: ' . $e->getMessage());
-            return false;
         }
     }
 
@@ -323,7 +276,7 @@ class NotificacionService
      * Útil para los controladores y el scheduler.
      *
      * @param array $tarea        Fila de tareas con campos: id, nombre, fecha_fin,
-     *                            usuario_asignado_id, usuario_asignado_nombre, telefono (si disponible),
+     *                            usuario_asignado_id, usuario_asignado_nombre,
      *                            proyecto_nombre (si disponible)
      * @param string|null $actor  Nombre de quien dispara el evento
      */
@@ -339,16 +292,15 @@ class NotificacionService
         }
 
         return [
-            'entity_type'   => 'tarea',
-            'entity_id'     => (int)($tarea['id'] ?? 0),
-            'user_id'       => (int)($tarea['usuario_asignado_id'] ?? 0),
-            'user_nombre'   => $tarea['usuario_asignado_nombre'] ?? $tarea['nombre_usuario'] ?? '',
-            'user_telefono' => $tarea['telefono'] ?? '',
-            'tarea'         => $tarea['nombre'] ?? '',
-            'proyecto'      => $tarea['proyecto_nombre'] ?? $tarea['proyecto'] ?? '',
-            'fecha_fin'     => $fechaStr,
-            'dias'          => (string)abs($dias),
-            'actor'         => $actor ?? 'Sistema',
+            'entity_type' => 'tarea',
+            'entity_id'   => (int)($tarea['id'] ?? 0),
+            'user_id'     => (int)($tarea['usuario_asignado_id'] ?? 0),
+            'user_nombre' => $tarea['usuario_asignado_nombre'] ?? $tarea['nombre_usuario'] ?? '',
+            'tarea'       => $tarea['nombre'] ?? '',
+            'proyecto'    => $tarea['proyecto_nombre'] ?? $tarea['proyecto'] ?? '',
+            'fecha_fin'   => $fechaStr,
+            'dias'        => (string)abs($dias),
+            'actor'       => $actor ?? 'Sistema',
         ];
     }
 

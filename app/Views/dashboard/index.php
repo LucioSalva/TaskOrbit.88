@@ -75,8 +75,7 @@ $totalSinMovimiento = (int)($resumen['total_tareas_sin_movimiento'] ?? 0);
         <div class="card h-100">
             <div class="card-body p-3">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-3 d-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary"
-                         style="width:48px;height:48px;min-width:48px">
+                    <div class="rounded-3 d-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary kpi-icon-box">
                         <i class="bi bi-kanban fs-4"></i>
                     </div>
                     <div>
@@ -96,8 +95,7 @@ $totalSinMovimiento = (int)($resumen['total_tareas_sin_movimiento'] ?? 0);
         <div class="card h-100">
             <div class="card-body p-3">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-3 d-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary"
-                         style="width:48px;height:48px;min-width:48px">
+                    <div class="rounded-3 d-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary kpi-icon-box">
                         <i class="bi bi-list-task fs-4"></i>
                     </div>
                     <div>
@@ -117,8 +115,7 @@ $totalSinMovimiento = (int)($resumen['total_tareas_sin_movimiento'] ?? 0);
         <div class="card h-100">
             <div class="card-body p-3">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-3 d-flex align-items-center justify-content-center bg-success bg-opacity-10 text-success"
-                         style="width:48px;height:48px;min-width:48px">
+                    <div class="rounded-3 d-flex align-items-center justify-content-center bg-success bg-opacity-10 text-success kpi-icon-box">
                         <i class="bi bi-check-circle fs-4"></i>
                     </div>
                     <div>
@@ -138,10 +135,9 @@ $totalSinMovimiento = (int)($resumen['total_tareas_sin_movimiento'] ?? 0);
         <div class="card h-100 <?php echo $totalVencidas > 0 ? 'bg-danger text-white' : ''; ?>">
             <div class="card-body p-3">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-3 d-flex align-items-center justify-content-center <?php echo $totalVencidas > 0
+                    <div class="rounded-3 d-flex align-items-center justify-content-center kpi-icon-box <?php echo $totalVencidas > 0
                         ? 'bg-white bg-opacity-25 text-white'
-                        : 'bg-danger bg-opacity-10 text-danger'; ?>"
-                         style="width:48px;height:48px;min-width:48px">
+                        : 'bg-danger bg-opacity-10 text-danger'; ?>">
                         <i class="bi bi-exclamation-triangle fs-4"></i>
                     </div>
                     <div>
@@ -186,13 +182,13 @@ $totalSinMovimiento = (int)($resumen['total_tareas_sin_movimiento'] ?? 0);
                     <span class="small fw-semibold">Cumplimiento</span>
                     <span class="small fw-bold"><?php echo $miCumplimiento; ?>%</span>
                 </div>
-                <div class="progress" style="height:10px">
+                <div class="progress progress-h10">
                     <div class="progress-bar <?php echo $cumplColor; ?>"
                          role="progressbar"
                          aria-valuenow="<?php echo $miCumplimiento; ?>"
                          aria-valuemin="0"
                          aria-valuemax="100"
-                         style="width:<?php echo max($miCumplimiento, 2); ?>%">
+                         data-progress-pct="<?php echo max($miCumplimiento, 2); ?>">
                     </div>
                 </div>
             </div>
@@ -200,25 +196,25 @@ $totalSinMovimiento = (int)($resumen['total_tareas_sin_movimiento'] ?? 0);
                 <div class="d-flex flex-wrap gap-3 text-center justify-content-around">
                     <div>
                         <div class="fs-6 fs-md-5 fw-bold"><?php echo $miAsignadas; ?></div>
-                        <div class="text-muted" style="font-size:0.7rem">Asignadas</div>
+                        <div class="text-muted text-xxs">Asignadas</div>
                     </div>
                     <div>
                         <div class="fs-6 fs-md-5 fw-bold text-success"><?php echo $miTerminadas; ?></div>
-                        <div class="text-muted" style="font-size:0.7rem">Terminadas</div>
+                        <div class="text-muted text-xxs">Terminadas</div>
                     </div>
                     <div>
                         <div class="fs-6 fs-md-5 fw-bold <?php echo $miVencidas > 0 ? 'text-danger' : ''; ?>"><?php echo $miVencidas; ?></div>
-                        <div class="text-muted" style="font-size:0.7rem">Vencidas</div>
+                        <div class="text-muted text-xxs">Vencidas</div>
                     </div>
                     <div>
                         <div class="fs-6 fs-md-5 fw-bold"><?php echo $miCarga; ?></div>
-                        <div class="text-muted" style="font-size:0.7rem">Carga</div>
+                        <div class="text-muted text-xxs">Carga</div>
                     </div>
                     <div>
                         <div class="fs-6 fs-md-5 fw-bold">
                             <?php echo $miTiempoPromedio !== null ? $e($miTiempoPromedio) . 'd' : '&mdash;'; ?>
                         </div>
-                        <div class="text-muted" style="font-size:0.7rem">Prom.</div>
+                        <div class="text-muted text-xxs">Prom.</div>
                     </div>
                 </div>
             </div>
@@ -318,16 +314,16 @@ $totalSinMovimiento = (int)($resumen['total_tareas_sin_movimiento'] ?? 0);
             elseif ($muCumpl >= 50) { $cumplColor = 'bg-warning'; }
             $borderColor = str_replace('bg-', 'border-', $cumplColor);
             ?>
-            <div class="dashboard-user-card card" style="border-left-color: var(--bs-<?php echo str_replace('bg-', '', $cumplColor); ?>)">
+            <div class="dashboard-user-card card dashboard-user-card--<?php echo str_replace('bg-', '', $cumplColor); ?>">
               <div class="d-flex align-items-center gap-2">
                 <span class="avatar"><?php echo mb_substr($e($mu['nombre_completo'] ?? ''), 0, 1); ?></span>
                 <div class="flex-fill min-w-0">
                   <div class="fw-semibold small text-truncate"><?php echo $e($mu['nombre_completo'] ?? ''); ?></div>
                   <div class="d-flex align-items-center gap-2 mt-1">
-                    <div class="progress flex-fill" style="height:6px">
-                      <div class="progress-bar <?php echo $cumplColor; ?>" style="width:<?php echo max($muCumpl, 2); ?>%"></div>
+                    <div class="progress flex-fill progress-h6">
+                      <div class="progress-bar <?php echo $cumplColor; ?>" data-progress-pct="<?php echo max($muCumpl, 2); ?>"></div>
                     </div>
-                    <span class="fw-bold small" style="min-width:35px"><?php echo $muCumpl; ?>%</span>
+                    <span class="fw-bold small mnw-35"><?php echo $muCumpl; ?>%</span>
                   </div>
                 </div>
               </div>
@@ -387,7 +383,7 @@ $totalSinMovimiento = (int)($resumen['total_tareas_sin_movimiento'] ?? 0);
                     <tr>
                         <th>Proyecto</th>
                         <th>Responsable</th>
-                        <th style="min-width:140px">Avance</th>
+                        <th class="mnw-140">Avance</th>
                         <th class="text-center">Tareas</th>
                         <th class="text-center">Estado</th>
                         <th class="text-center">Semaforo</th>
@@ -422,13 +418,13 @@ $totalSinMovimiento = (int)($resumen['total_tareas_sin_movimiento'] ?? 0);
                         <td class="small text-muted"><?php echo $e($mp['responsable'] ?? '&mdash;'); ?></td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
-                                <div class="progress flex-fill" style="height:8px">
+                                <div class="progress flex-fill progress-h8">
                                     <div class="progress-bar <?php echo $barColor; ?>"
                                          role="progressbar"
                                          aria-valuenow="<?php echo $mpAvance; ?>"
                                          aria-valuemin="0"
                                          aria-valuemax="100"
-                                         style="width:<?php echo max($mpAvance, 2); ?>%">
+                                         data-progress-pct="<?php echo max($mpAvance, 2); ?>">
                                     </div>
                                 </div>
                                 <small class="fw-semibold text-nowrap"><?php echo $mpAvance; ?>%</small>
@@ -508,30 +504,30 @@ $totalSinMovimiento = (int)($resumen['total_tareas_sin_movimiento'] ?? 0);
                   <div class="fw-semibold small text-truncate"><?php echo $e($mp['nombre'] ?? ''); ?></div>
                   <div class="d-flex gap-1 flex-wrap mt-1 align-items-center">
                     <?php if (!empty($mp['proyecto_estado'])): ?>
-                    <span class="badge badge-estado-<?php echo $e($mp['proyecto_estado']); ?>" style="font-size:0.65rem"><?php echo $e($estadoLabel[$mp['proyecto_estado']] ?? $mp['proyecto_estado']); ?></span>
+                    <span class="badge badge-estado-<?php echo $e($mp['proyecto_estado']); ?> text-2xs"><?php echo $e($estadoLabel[$mp['proyecto_estado']] ?? $mp['proyecto_estado']); ?></span>
                     <?php endif; ?>
                     <?php if (!empty($mp['prioridad'])): ?>
-                    <span class="badge badge-prioridad-<?php echo $e($mp['prioridad']); ?>" style="font-size:0.65rem"><?php echo $e($prioridadLabel[$mp['prioridad']] ?? $mp['prioridad']); ?></span>
+                    <span class="badge badge-prioridad-<?php echo $e($mp['prioridad']); ?> text-2xs"><?php echo $e($prioridadLabel[$mp['prioridad']] ?? $mp['prioridad']); ?></span>
                     <?php endif; ?>
                     <?php echo \App\Services\SemaforoService::badge($mpSemaforo); ?>
                   </div>
                 </div>
                 <div class="text-end flex-shrink-0">
                   <div class="fw-bold <?php echo $mpAvance >= 75 ? 'text-success' : ($mpAvance >= 40 ? 'text-warning' : 'text-danger'); ?>"><?php echo $mpAvance; ?>%</div>
-                  <div class="text-muted" style="font-size:0.65rem"><?php echo $mpTermin; ?>/<?php echo $mpTotal; ?> tareas</div>
+                  <div class="text-muted text-2xs"><?php echo $mpTermin; ?>/<?php echo $mpTotal; ?> tareas</div>
                 </div>
               </div>
-              <div class="progress" style="height:6px;margin-top:0.4rem">
-                <div class="progress-bar <?php echo $barColor; ?>" style="width:<?php echo max($mpAvance, 2); ?>%"></div>
+              <div class="progress progress-h6 margin-top-sm">
+                <div class="progress-bar <?php echo $barColor; ?>" data-progress-pct="<?php echo max($mpAvance, 2); ?>"></div>
               </div>
               <div class="d-flex justify-content-between align-items-center mt-1">
-                <span class="text-muted" style="font-size:0.65rem">
+                <span class="text-muted text-2xs">
                   <?php if (!empty($mp['responsable'])): ?>
                   <i class="bi bi-person me-1"></i><?php echo $e($mp['responsable']); ?>
                   <?php endif; ?>
                 </span>
                 <?php if ($mpVenc > 0): ?>
-                <span class="badge bg-danger" style="font-size:0.6rem"><?php echo $mpVenc; ?> venc.</span>
+                <span class="badge bg-danger text-3xs"><?php echo $mpVenc; ?> venc.</span>
                 <?php endif; ?>
               </div>
             </div>
@@ -556,13 +552,13 @@ $semConfig = [
   <div class="col-12 col-md-6">
     <div class="card h-100">
       <div class="card-header py-2">
-        <h6 class="mb-0 fw-semibold small"><i class="bi bi-circle-fill text-primary me-1" style="font-size:.6rem"></i>Semáforo Proyectos</h6>
+        <h6 class="mb-0 fw-semibold small"><i class="bi bi-circle-fill text-primary me-1 text-3xs"></i>Semáforo Proyectos</h6>
       </div>
       <div class="card-body py-2">
         <div class="d-flex gap-3 flex-wrap">
           <?php foreach ($semConfig as $nivel => $cfg): ?>
           <div class="text-center">
-            <div class="fw-bold fs-5" style="color:<?php echo $cfg['color']; ?>"><?php echo (int)($semProy[$nivel] ?? 0); ?></div>
+            <div class="fw-bold fs-5" data-color="<?php echo htmlspecialchars($cfg['color']); ?>"><?php echo (int)($semProy[$nivel] ?? 0); ?></div>
             <div class="small text-muted"><?php echo $cfg['label']; ?></div>
           </div>
           <?php endforeach; ?>
@@ -573,13 +569,13 @@ $semConfig = [
   <div class="col-12 col-md-6">
     <div class="card h-100">
       <div class="card-header py-2">
-        <h6 class="mb-0 fw-semibold small"><i class="bi bi-circle-fill text-info me-1" style="font-size:.6rem"></i>Semáforo Tareas</h6>
+        <h6 class="mb-0 fw-semibold small"><i class="bi bi-circle-fill text-info me-1 text-3xs"></i>Semáforo Tareas</h6>
       </div>
       <div class="card-body py-2">
         <div class="d-flex gap-3 flex-wrap">
           <?php foreach ($semConfig as $nivel => $cfg): ?>
           <div class="text-center">
-            <div class="fw-bold fs-5" style="color:<?php echo $cfg['color']; ?>"><?php echo (int)($semTar[$nivel] ?? 0); ?></div>
+            <div class="fw-bold fs-5" data-color="<?php echo htmlspecialchars($cfg['color']); ?>"><?php echo (int)($semTar[$nivel] ?? 0); ?></div>
             <div class="small text-muted"><?php echo $cfg['label']; ?></div>
           </div>
           <?php endforeach; ?>
@@ -750,7 +746,7 @@ $chartProyectos = json_encode(array_map(function ($mp) {
                         <i class="bi bi-pie-chart me-1"></i>Distribucion de Tareas
                     </h6>
                     <div class="d-flex justify-content-center">
-                        <canvas id="chart-estados" style="max-height:280px"></canvas>
+                        <canvas id="chart-estados" class="chart-max-h"></canvas>
                     </div>
                 </div>
                 <?php endif; ?>
@@ -762,7 +758,7 @@ $chartProyectos = json_encode(array_map(function ($mp) {
                         <i class="bi bi-people me-1"></i>Cumplimiento por Usuario
                     </h6>
                     <div>
-                        <canvas id="chart-usuarios" style="max-height:280px"></canvas>
+                        <canvas id="chart-usuarios" class="chart-max-h"></canvas>
                     </div>
                 </div>
                 <?php endif; ?>

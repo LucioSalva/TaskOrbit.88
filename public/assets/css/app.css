@@ -516,3 +516,76 @@ button[disabled][data-submitting="true"] {
   background: var(--bs-tertiary-bg);
   border-color: var(--bs-border-color);
 }
+
+/* ---- CSP Compliance: Utility classes (replaces inline style= attributes) ---- */
+
+/* Font sizes */
+.text-3xs  { font-size: 0.6rem; }
+.text-2xs  { font-size: 0.65rem; }
+.text-xxs  { font-size: 0.7rem; }
+.text-xs-custom { font-size: 0.75rem; }
+.text-sm-px     { font-size: 0.82rem; }
+.text-sm-px2    { font-size: 0.68rem; }
+.icon-sm   { font-size: 1.4rem; }
+.icon-md   { font-size: 1.5rem; }
+
+/* KPI icon box */
+.kpi-icon-box { width: 48px; height: 48px; min-width: 48px; }
+
+/* Progress heights */
+.progress-h4  { height: 4px; }
+.progress-h6  { height: 6px; }
+.progress-h8  { height: 8px; }
+.progress-h10 { height: 10px; }
+
+/* Sizing constraints */
+.mw-90  { max-width: 90px; }
+.mw-120 { max-width: 120px; }
+.mw-420 { max-width: 420px; }
+.mw-700 { max-width: 700px; }
+.mnw-35 { min-width: 35px; }
+.mnw-140 { min-width: 140px; }
+.min-w-0 { min-width: 0; }
+
+/* Display / visibility helpers */
+.text-preline { white-space: pre-line; }
+.c-pointer    { cursor: pointer; }
+.transition-transform { transition: transform 0.2s; }
+
+/* Z-index layers */
+.z-9999 { z-index: 9999; }
+.z-1100 { z-index: 1100; }
+
+/* Layout helpers */
+.min-vh-100 { min-height: 100vh; }
+.pos-tr-fixed { position: fixed; top: 1rem; right: 1rem; z-index: 9999; }
+
+/* Sidebar specific */
+.sidebar-brand-img   { width: 24px; height: 24px; object-fit: contain; }
+.sidebar-user-name   { font-size: 0.8rem; font-weight: 600; }
+.sidebar-section-lbl { font-size: 0.7rem; color: #a5b4fc; text-transform: uppercase; letter-spacing: 1px; }
+.sidebar-sep         { border-color: rgba(255,255,255,0.1) !important; }
+
+/* Error pages */
+.star-canvas-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.error-body-403 { min-height: 100vh; }
+
+/* Dashboard */
+.dashboard-user-card--success { border-left-color: var(--bs-success); }
+.dashboard-user-card--warning { border-left-color: var(--bs-warning); }
+.dashboard-user-card--danger  { border-left-color: var(--bs-danger);  }
+
+/* Note / panel utilities */
+.note-content-text { white-space: pre-line; }
+.toast-layer       { z-index: 1100; }
+.offcanvas-w-380   { width: min(380px, 100vw); }
+
+/* Charts */
+.chart-max-h { max-height: 280px; }
+
+/* Misc */
+.progress-init-0 { width: 0%; }
+.margin-top-sm   { margin-top: 0.4rem; }
+
+/* Access denied icon */
+.access-denied-icon { font-size: 5rem; color: #ef4444; margin-bottom: 1rem; }

@@ -2,7 +2,7 @@ Options -MultiViews
 RewriteEngine On
 
 # Ajusta RewriteBase si tu app no está en la raíz de Apache.
-# Ejemplo: si APP_URL = http://localhost/taskflow-php/public
+# Ejemplo: si APP_URL = http://localhost/taskorbit/public
 # descomenta la línea siguiente:
 RewriteBase /taskorbit/public/
 

@@ -67,7 +67,8 @@ class Tarea
              LEFT JOIN usuarios ut ON ut.id = t.usuario_asignado_id
              LEFT JOIN usuarios up ON up.id = p.usuario_asignado_id
              $whereClause
-             ORDER BY t.created_at DESC",
+             ORDER BY t.created_at DESC
+             LIMIT 500",
             $params
         );
     }
@@ -224,6 +225,21 @@ class Tarea
                 [$now, $id]
             );
 
+            // Propagate soft delete to evidencias for the tarea
+            $db->execute(
+                "UPDATE evidencias SET deleted_at = ? WHERE tipo_entidad = 'tarea' AND entidad_id = ? AND deleted_at IS NULL",
+                [$now, $id]
+            );
+
+            // Propagate soft delete to evidencias for child subtareas
+            if ($subtaskIds) {
+                $ph = implode(',', array_fill(0, count($subtaskIds), '?'));
+                $db->execute(
+                    "UPDATE evidencias SET deleted_at = ? WHERE tipo_entidad = 'subtarea' AND entidad_id IN ($ph) AND deleted_at IS NULL",
+                    array_merge([$now], $subtaskIds)
+                );
+            }
+
             $db->commit();
         } catch (\Throwable $e) {
             $db->rollback();
@@ -252,6 +268,21 @@ class Tarea
             'subtareas' => $subtareas['total'] ?? 0,
             'notas'     => $notas['total'] ?? 0,
         ];
+    }
+
+    /**
+     * Get lightweight task list (id, nombre, proyecto_id) for given project IDs.
+     * Used by NotasController for scope dropdowns.
+     */
+    public static function getListByProyectoIds(array $proyectoIds): array
+    {
+        if (empty($proyectoIds)) return [];
+        $db = Database::getInstance();
+        $placeholders = implode(',', array_fill(0, count($proyectoIds), '?'));
+        return $db->fetchAll(
+            "SELECT id, nombre, proyecto_id FROM vw_tareas WHERE proyecto_id IN ($placeholders) ORDER BY nombre",
+            $proyectoIds
+        );
     }
 
     /**

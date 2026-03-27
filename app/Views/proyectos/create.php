@@ -9,7 +9,7 @@ $e      = fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
   </ol>
 </nav>
 
-<div class="card" style="max-width:700px">
+<div class="card mw-700">
   <div class="card-header fw-semibold">
     <i class="bi bi-plus-circle me-2 text-primary"></i>Nuevo Proyecto
   </div>

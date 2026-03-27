@@ -98,13 +98,16 @@
       })
       .then(function(r) {
         if (r.status === 419) {
-          alert('La sesión expiró. Recarga la página e intenta de nuevo.');
-          location.reload();
+          console.warn('CSRF token mismatch on nota add.');
+          if (spinner) spinner.classList.add('d-none');
+          if (submitBtn) submitBtn.disabled = false;
+          if (typeof showActionFeedback === 'function') showActionFeedback('Error de sesión. Intenta de nuevo.', 'error');
           return Promise.reject('csrf_expired');
         }
         return r.json();
       })
       .then(function(res) {
+        refreshCsrfToken(res);
         if (spinner) spinner.classList.add('d-none');
         if (submitBtn) submitBtn.disabled = false;
 
@@ -195,13 +198,14 @@
         })
         .then(function(r) {
           if (r.status === 419) {
-            alert('La sesión expiró. Recarga la página e intenta de nuevo.');
-            location.reload();
+            console.warn('CSRF token mismatch on nota update.');
+            if (typeof showActionFeedback === 'function') showActionFeedback('Error de sesión. Intenta de nuevo.', 'error');
             return Promise.reject('csrf_expired');
           }
           return r.json();
         })
         .then(function(res) {
+          refreshCsrfToken(res);
           if (res.ok) {
             var tituloEl   = form.querySelector('[name="titulo"]');
             var newTitulo  = tituloEl ? tituloEl.value.trim() : '';
@@ -249,13 +253,14 @@
         })
         .then(function(r) {
           if (r.status === 419) {
-            alert('La sesión expiró. Recarga la página e intenta de nuevo.');
-            location.reload();
+            console.warn('CSRF token mismatch on nota delete.');
+            if (typeof showActionFeedback === 'function') showActionFeedback('Error de sesión. Intenta de nuevo.', 'error');
             return Promise.reject('csrf_expired');
           }
           return r.json();
         })
         .then(function(res) {
+          refreshCsrfToken(res);
           if (res.ok) {
             // Find parent panel to update counter
             var panel   = itemEl.closest('.notas-panel');
@@ -302,13 +307,14 @@
         })
         .then(function(r) {
           if (r.status === 419) {
-            alert('La sesión expiró. Recarga la página e intenta de nuevo.');
-            location.reload();
+            console.warn('CSRF token mismatch on nota pin.');
+            if (typeof showActionFeedback === 'function') showActionFeedback('Error de sesión. Intenta de nuevo.', 'error');
             return Promise.reject('csrf_expired');
           }
           return r.json();
         })
         .then(function(res) {
+          refreshCsrfToken(res);
           if (res.ok) {
             var pinBtn = form.querySelector('button');
             var icon   = pinBtn ? pinBtn.querySelector('i') : null;

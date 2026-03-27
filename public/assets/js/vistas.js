@@ -53,11 +53,11 @@
       var found = false;
       panels.forEach(function (p) {
         var active = p.dataset.vista === viewId;
-        p.style.display = active ? '' : 'none';
+        p.classList.toggle('d-none', !active);
         if (active) found = true;
       });
       if (!found) {
-        panels.forEach(function (p, i) { p.style.display = i === 0 ? '' : 'none'; });
+        panels.forEach(function (p, i) { p.classList.toggle('d-none', i !== 0); });
         viewId = panels[0] ? panels[0].dataset.vista : 'lista';
       }
       links.forEach(function (l) { l.classList.toggle('active', l.dataset.view === viewId); });
@@ -75,10 +75,15 @@
       });
     });
 
-    // Restore view
-    var hash  = location.hash.replace('#', '');
-    var saved = localStorage.getItem(key);
-    showView(hash || saved || 'lista');
+    // Restore view — fallback 'lista' if USER role has 'timeline' saved
+    var hash      = location.hash.replace('#', '');
+    var saved     = localStorage.getItem(key);
+    var userRole  = document.body ? document.body.dataset.userRole || '' : '';
+    var preferred = hash || saved || 'lista';
+    if (preferred === 'timeline' && userRole === 'USER') {
+      preferred = 'lista';
+    }
+    showView(preferred);
   }
 
   // ---- User group collapse ----

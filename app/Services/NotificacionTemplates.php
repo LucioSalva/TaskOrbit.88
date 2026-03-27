@@ -8,7 +8,7 @@ namespace App\Services;
  *
  * Cada evento tiene:
  *   - title:    título de la notificación interna
- *   - body:     cuerpo del mensaje (in-app y WhatsApp)
+ *   - body:     cuerpo del mensaje (in-app)
  *   - severity: info | success | warning | danger
  *
  * Las variables {placeholder} se reemplazan con los valores del contexto.

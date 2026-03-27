@@ -128,7 +128,14 @@ class ProyectosController extends Controller
     public function show(string $id): void
     {
         $this->requireAuth();
-        $user    = $this->currentUser();
+        $user = $this->currentUser();
+
+        // Validate id is numeric
+        if (!ctype_digit($id)) {
+            $this->flash('error', 'ID de proyecto inválido.');
+            $this->redirect('/proyectos');
+        }
+
         $proyecto = Proyecto::getById((int)$id);
 
         if (!$proyecto || !Proyecto::checkAccess($proyecto, $user['id'], $user['rol'])) {
@@ -136,13 +143,20 @@ class ProyectosController extends Controller
             $this->redirect('/proyectos');
         }
 
-        // Tasks — scoped by role
-        $tareas = \App\Models\Tarea::getByProyecto((int)$id, $user['rol'], (int)$user['id']);
-        SemaforoService::attachToAll($tareas);
-        $proyecto['semaforo'] = SemaforoService::calcularProyecto($proyecto, $tareas);
+        try {
+            // Tasks — scoped by role
+            $tareas = \App\Models\Tarea::getByProyecto((int)$id, $user['rol'], (int)$user['id']);
+            SemaforoService::attachToAll($tareas);
+            $proyecto['semaforo'] = SemaforoService::calcularProyecto($proyecto, $tareas);
 
-        // Notes for project
-        $notas = \App\Models\Nota::getByScope('proyecto', (int)$id);
+            // Notes for project
+            $notas = \App\Models\Nota::getByScope('proyecto', (int)$id);
+        } catch (\Throwable $e) {
+            error_log('[ProyectosController::show] Error loading project data id=' . $id . ': ' . $e->getMessage());
+            $tareas = [];
+            $notas  = [];
+            $proyecto['semaforo'] = 'neutral';
+        }
 
         $this->view('proyectos/show', [
             'flash'    => $this->getFlash(),
@@ -173,7 +187,7 @@ class ProyectosController extends Controller
         $user  = $this->currentUser();
         $errors = [];
 
-        error_log('[ProyectosController::store] POST recibido: ' . json_encode($_POST));
+        error_log('[ProyectosController::store] POST recibido para crear proyecto.');
 
         $nombre             = trim($_POST['nombre'] ?? '');
         $descripcion        = trim($_POST['descripcion'] ?? '');
@@ -215,7 +229,7 @@ class ProyectosController extends Controller
         }
 
         if (!empty($errors)) {
-            error_log('[ProyectosController::store] Validación fallida: ' . json_encode($errors));
+            error_log('[ProyectosController::store] Validacion fallida: ' . count($errors) . ' error(es).');
             foreach ($errors as $e) $this->flash('error', $e);
             $this->redirect('/proyectos/crear');
         }
@@ -230,7 +244,7 @@ class ProyectosController extends Controller
             'usuario_asignado_id'=> $usuarioAsignadoId,
         ];
 
-        error_log('[ProyectosController::store] Datos validados, ejecutando insert: ' . json_encode($data));
+        error_log('[ProyectosController::store] Datos validados, ejecutando insert.');
 
         $proyectoId = 0;
         try {
@@ -251,14 +265,13 @@ class ProyectosController extends Controller
         try {
             $assignedUser = Usuario::findById($usuarioAsignadoId);
             NotificacionService::dispatch(NotificacionService::PROYECTO_ASIGNADO, [
-                'entity_type'   => 'proyecto',
-                'entity_id'     => $proyectoId,
-                'user_id'       => $usuarioAsignadoId,
-                'user_nombre'   => $assignedUser['nombre_completo'] ?? '',
-                'user_telefono' => $assignedUser['telefono'] ?? '',
-                'proyecto'      => $nombre,
-                'fecha_fin'     => $fechaFin ? date('d/m/Y', strtotime($fechaFin)) : 'Sin fecha',
-                'actor'         => $user['nombre_completo'],
+                'entity_type' => 'proyecto',
+                'entity_id'   => $proyectoId,
+                'user_id'     => $usuarioAsignadoId,
+                'user_nombre' => $assignedUser['nombre_completo'] ?? '',
+                'proyecto'    => $nombre,
+                'fecha_fin'   => $fechaFin ? date('d/m/Y', strtotime($fechaFin)) : 'Sin fecha',
+                'actor'       => $user['nombre_completo'],
             ]);
         } catch (\Throwable $e) {
             // Notification failure must never roll back a successful project creation
@@ -407,14 +420,13 @@ class ProyectosController extends Controller
             ];
             $assignedUser = Usuario::findById($assignedUserId);
             NotificacionService::dispatch(NotificacionService::CAMBIO_ESTADO_PROYECTO, [
-                'entity_type'   => 'proyecto',
-                'entity_id'     => (int)$id,
-                'user_id'       => $assignedUserId,
-                'user_nombre'   => $assignedUser['nombre_completo'] ?? '',
-                'user_telefono' => $assignedUser['telefono'] ?? '',
-                'proyecto'      => $proyecto['nombre'],
-                'estado'        => $estadoLabels[$estado] ?? $estado,
-                'actor'         => $user['nombre_completo'],
+                'entity_type' => 'proyecto',
+                'entity_id'   => (int)$id,
+                'user_id'     => $assignedUserId,
+                'user_nombre' => $assignedUser['nombre_completo'] ?? '',
+                'proyecto'    => $proyecto['nombre'],
+                'estado'      => $estadoLabels[$estado] ?? $estado,
+                'actor'       => $user['nombre_completo'],
             ]);
         }
 

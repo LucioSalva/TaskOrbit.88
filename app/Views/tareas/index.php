@@ -49,18 +49,20 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
     <li class="nav-item"><a class="nav-link" href="#lista"    data-view="lista">   <i class="bi bi-list-ul me-1"></i><span>Lista</span></a></li>
     <li class="nav-item"><a class="nav-link" href="#kanban"   data-view="kanban">  <i class="bi bi-kanban me-1"></i><span>Kanban</span></a></li>
     <li class="nav-item"><a class="nav-link" href="#usuario"  data-view="usuario"> <i class="bi bi-people me-1"></i><span>Por Usuario</span></a></li>
+    <?php if ($role !== 'USER'): ?>
     <li class="nav-item"><a class="nav-link" href="#timeline" data-view="timeline"><i class="bi bi-clock-history me-1"></i><span>Timeline</span></a></li>
+    <?php endif; ?>
   </ul>
   <div class="vista-panel" data-vista="lista">
     <?php include __DIR__ . '/_vista_lista.php'; ?>
   </div>
-  <div class="vista-panel" data-vista="kanban" style="display:none">
+  <div class="vista-panel d-none" data-vista="kanban">
     <?php include __DIR__ . '/_vista_kanban.php'; ?>
   </div>
-  <div class="vista-panel" data-vista="usuario" style="display:none">
+  <div class="vista-panel d-none" data-vista="usuario">
     <?php include __DIR__ . '/_vista_usuario.php'; ?>
   </div>
-  <div class="vista-panel" data-vista="timeline" style="display:none">
+  <div class="vista-panel d-none" data-vista="timeline">
     <?php include __DIR__ . '/_vista_timeline.php'; ?>
   </div>
 </div>
@@ -68,13 +70,13 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
 <?php endif; ?>
 
 <?php if (!empty($usuarios)): ?>
-<script>
+<script nonce="<?= CSP_NONCE ?>">
 var USUARIOS_ASIGNABLES = <?php echo json_encode(array_map(function($u) {
     return ['id' => $u['id'], 'nombre_completo' => $u['nombre_completo'], 'rol' => $u['rol'] ?? ''];
 }, $usuarios)); ?>;
 </script>
 <?php else: ?>
-<script>var USUARIOS_ASIGNABLES = [];</script>
+<script nonce="<?= CSP_NONCE ?>">var USUARIOS_ASIGNABLES = [];</script>
 <?php endif; ?>
 
 <!-- Notas / Bitácora del Proyecto -->
@@ -104,7 +106,7 @@ var USUARIOS_ASIGNABLES = <?php echo json_encode(array_map(function($u) {
     </div>
   </div>
 </div>
-<script>
+<script nonce="<?= CSP_NONCE ?>">
 (function() {
   var collapseEl = document.getElementById('panel-notas-proyecto');
   if (!collapseEl) return;

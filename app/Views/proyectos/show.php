@@ -127,12 +127,12 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
     <?php else: ?>
     <div class="list-group">
       <?php foreach ($tareas as $tarea): ?>
-      <div class="list-group-item list-group-item-action">
+      <a href="<?php echo $appUrl; ?>/tareas/<?php echo $e($tarea['id']); ?>" class="list-group-item list-group-item-action text-decoration-none">
         <div class="d-flex align-items-start justify-content-between gap-2">
           <div class="flex-fill">
-            <a href="<?php echo $appUrl; ?>/proyectos/<?php echo $e($p['id']); ?>/tareas" class="fw-semibold text-decoration-none">
+            <span class="fw-semibold">
               <?php echo $e($tarea['nombre']); ?>
-            </a>
+            </span>
             <?php if($tarea['usuario_asignado_nombre']??''): ?>
             <div class="text-muted small"><i class="bi bi-person me-1"></i><?php echo $e($tarea['usuario_asignado_nombre']); ?></div>
             <?php endif; ?>
@@ -142,7 +142,7 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
             <span class="badge badge-prioridad-<?php echo $e($tarea['prioridad']); ?>"><?php echo ucfirst($e($tarea['prioridad'])); ?></span>
           </div>
         </div>
-      </div>
+      </a>
       <?php endforeach; ?>
     </div>
     <div class="mt-3">

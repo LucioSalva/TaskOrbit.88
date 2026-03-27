@@ -41,7 +41,7 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Helpers\{CSRF, Validator};
 use App\Models\{Proyecto, Tarea, Subtarea, Usuario, Notificacion, Nota, Evidencia};
-use App\Services\{WhatsAppService, EstadoService, NotificacionService, SemaforoService};
+use App\Services\{EstadoService, NotificacionService, SemaforoService};
 
 class TareasController extends Controller
 {
@@ -113,6 +113,50 @@ class TareasController extends Controller
             'tarByEstado'  => $tarByEstado,
             'tarByUsuario' => $tarByUsuario,
             'tarTimeline'  => $tarTimeline,
+        ]);
+    }
+
+    public function show(string $id): void
+    {
+        $this->requireAuth();
+        $user = $this->currentUser();
+
+        if (!ctype_digit($id)) {
+            $this->flash('error', 'ID de tarea inválido.');
+            $this->redirect('/proyectos');
+        }
+
+        $tarea = Tarea::getById((int)$id);
+
+        if (!$tarea) {
+            $this->flash('error', 'Tarea no encontrada.');
+            $this->redirect('/proyectos');
+        }
+
+        $proyecto = Proyecto::getById((int)$tarea['proyecto_id']);
+        if (!$proyecto || !Proyecto::checkAccess($proyecto, $user['id'], $user['rol'])) {
+            $this->flash('error', 'No tienes acceso a esta tarea.');
+            $this->redirect('/proyectos');
+        }
+
+        try {
+            $subtareas = Subtarea::getByTarea((int)$id);
+            $tarea['semaforo'] = SemaforoService::calcular($tarea);
+            $tarea['subtareas'] = $subtareas;
+            $notas = Nota::getByScope('tarea', (int)$id);
+        } catch (\Throwable $e) {
+            error_log('[TareasController::show] Error loading task data id=' . $id . ': ' . $e->getMessage());
+            $subtareas = [];
+            $tarea['subtareas'] = [];
+            $notas = [];
+            $tarea['semaforo'] = 'neutral';
+        }
+
+        $this->view('tareas/show', [
+            'flash'    => $this->getFlash(),
+            'tarea'    => $tarea,
+            'proyecto' => $proyecto,
+            'notas'    => $notas,
         ]);
     }
 
@@ -212,15 +256,14 @@ class TareasController extends Controller
         if ($effectiveUserId) {
             $assignedUser = Usuario::findById($effectiveUserId);
             NotificacionService::dispatch(NotificacionService::TAREA_ASIGNADA, [
-                'entity_type'   => 'tarea',
-                'entity_id'     => $tareaId,
-                'user_id'       => $effectiveUserId,
-                'user_nombre'   => $assignedUser['nombre_completo'] ?? '',
-                'user_telefono' => $assignedUser['telefono'] ?? '',
-                'tarea'         => $nombre,
-                'proyecto'      => $proyecto['nombre'],
-                'fecha_fin'     => $fechaFin ? date('d/m/Y', strtotime($fechaFin)) : 'Sin fecha',
-                'actor'         => $user['nombre_completo'],
+                'entity_type' => 'tarea',
+                'entity_id'   => $tareaId,
+                'user_id'     => $effectiveUserId,
+                'user_nombre' => $assignedUser['nombre_completo'] ?? '',
+                'tarea'       => $nombre,
+                'proyecto'    => $proyecto['nombre'],
+                'fecha_fin'   => $fechaFin ? date('d/m/Y', strtotime($fechaFin)) : 'Sin fecha',
+                'actor'       => $user['nombre_completo'],
             ]);
         }
 
@@ -403,13 +446,16 @@ class TareasController extends Controller
             $this->json(['ok' => false, 'message' => 'Acceso denegado'], 403);
         }
 
-        // USER can only change estado of tasks assigned to them
-        if ($user['rol'] === 'USER' && (int)($tarea['usuario_asignado_id'] ?? 0) !== (int)$user['id']) {
-            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
-                $this->json(['ok' => false, 'message' => 'No tienes acceso a esta tarea.'], 403);
+        // GOD can always change any task status.
+        // ADMIN and USER can only change status if assigned to the task.
+        if ($user['rol'] !== 'GOD') {
+            if ((int)($tarea['usuario_asignado_id'] ?? 0) !== (int)$user['id']) {
+                if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+                    $this->json(['ok' => false, 'message' => 'No tienes acceso a esta tarea.'], 403);
+                }
+                $this->flash('error', 'No tienes acceso a esta tarea.');
+                $this->back();
             }
-            $this->flash('error', 'No tienes acceso a esta tarea.');
-            $this->back();
         }
 
         $estado = trim($_POST['estado'] ?? '');
@@ -461,10 +507,9 @@ class TareasController extends Controller
                        : (($estado === 'terminada') ? NotificacionService::TAREA_TERMINADA
                        : NotificacionService::CAMBIO_ESTADO_TAREA);
                 NotificacionService::dispatch($event, array_merge($baseCtx, [
-                    'user_id'       => $efectivoUserId,
-                    'user_nombre'   => $assignedUser['nombre_completo'] ?? '',
-                    'user_telefono' => $assignedUser['telefono'] ?? '',
-                    'nombre'        => $assignedUser['nombre_completo'] ?? '',
+                    'user_id'     => $efectivoUserId,
+                    'user_nombre' => $assignedUser['nombre_completo'] ?? '',
+                    'nombre'      => $assignedUser['nombre_completo'] ?? '',
                 ]));
             }
 

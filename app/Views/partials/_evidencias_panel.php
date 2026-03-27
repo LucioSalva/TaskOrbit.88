@@ -48,7 +48,7 @@ $panelUid = 'evid-' . $evidTipo . '-' . $evidId;
       <span class="evidencia-badge-<?php echo $e($ev['extension']); ?> badge"><?php echo strtoupper($e($ev['extension'])); ?></span>
       <div class="flex-fill min-w-0">
         <div class="text-truncate small fw-medium"><?php echo $e($ev['nombre_original']); ?></div>
-        <div class="text-muted" style="font-size:.7rem">
+        <div class="text-muted fs-xs">
           <?php echo $e($ev['subido_por_nombre']); ?> &middot;
           <?php echo date('d/m/Y H:i', strtotime($ev['created_at'])); ?> &middot;
           <?php echo round(((int)$ev['peso_bytes']) / 1024); ?> KB
@@ -82,12 +82,12 @@ $panelUid = 'evid-' . $evidTipo . '-' . $evidId;
           <i class="bi bi-upload me-1"></i>Subir
         </button>
       </div>
-      <div class="form-text" style="font-size:.7rem">Solo PDF y PNG, max 5 MB</div>
+      <div class="form-text fs-xs">Solo PDF y PNG, max 5 MB</div>
     </form>
-    <div class="evidencia-feedback mt-1" style="display:none"></div>
-    <div class="evidencia-progress mt-1" style="display:none">
-      <div class="progress" style="height:4px">
-        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%"></div>
+    <div class="evidencia-feedback mt-1 d-none"></div>
+    <div class="evidencia-progress mt-1 d-none">
+      <div class="progress progress-h4">
+        <div class="progress-bar progress-bar-striped progress-bar-animated progress-init-0"></div>
       </div>
     </div>
   </div>

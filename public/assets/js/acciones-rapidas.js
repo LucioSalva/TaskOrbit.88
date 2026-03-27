@@ -198,13 +198,15 @@ function submitQuickAssign() {
   })
   .then(function(r) {
     if (r.status === 419) {
-      alert('La sesión expiró. Recarga la página e intenta de nuevo.');
-      location.reload();
+      console.warn('CSRF token mismatch on submitQuickAssign.');
+      _hideSpinner('qa-assign-spinner', 'qa-assign-submit');
+      showActionFeedback('Error de sesión. Intenta de nuevo.', 'error');
       return Promise.reject('csrf_expired');
     }
     return r.json();
   })
   .then(function(res) {
+    refreshCsrfToken(res);
     _hideSpinner('qa-assign-spinner', 'qa-assign-submit');
     if (res.ok) {
       _getAssignModal().hide();
@@ -282,13 +284,15 @@ function submitQuickEdit() {
   })
   .then(function(r) {
     if (r.status === 419) {
-      alert('La sesión expiró. Recarga la página e intenta de nuevo.');
-      location.reload();
+      console.warn('CSRF token mismatch on submitQuickEdit.');
+      _hideSpinner('qa-edit-spinner', 'qa-edit-submit');
+      showActionFeedback('Error de sesión. Intenta de nuevo.', 'error');
       return Promise.reject('csrf_expired');
     }
     return r.json();
   })
   .then(function(res) {
+    refreshCsrfToken(res);
     _hideSpinner('qa-edit-spinner', 'qa-edit-submit');
     if (res.ok) {
       _getEditOffcanvas().hide();
@@ -360,13 +364,15 @@ function submitQuickNota() {
   })
   .then(function(r) {
     if (r.status === 419) {
-      alert('La sesión expiró. Recarga la página e intenta de nuevo.');
-      location.reload();
+      console.warn('CSRF token mismatch on submitQuickNota.');
+      _hideSpinner('qa-nota-spinner', 'qa-nota-submit');
+      showActionFeedback('Error de sesión. Intenta de nuevo.', 'error');
       return Promise.reject('csrf_expired');
     }
     return r.json();
   })
   .then(function(res) {
+    refreshCsrfToken(res);
     _hideSpinner('qa-nota-spinner', 'qa-nota-submit');
     if (res.ok) {
       _getNotaModal().hide();
@@ -434,13 +440,15 @@ function submitQuickSubtarea(formEl) {
   })
   .then(function(r) {
     if (r.status === 419) {
-      alert('La sesión expiró. Recarga la página e intenta de nuevo.');
-      location.reload();
+      console.warn('CSRF token mismatch on submitQuickSubtarea.');
+      if (submitBtn) submitBtn.disabled = false;
+      showActionFeedback('Error de sesión. Intenta de nuevo.', 'error');
       return Promise.reject('csrf_expired');
     }
     return r.json();
   })
   .then(function(res) {
+    refreshCsrfToken(res);
     if (submitBtn) submitBtn.disabled = false;
     if (res.ok && res.subtarea) {
       // Clear form
@@ -485,6 +493,45 @@ document.addEventListener('DOMContentLoaded', function() {
     if (form && form.matches('[data-ajax-subtarea]')) {
       e.preventDefault();
       submitQuickSubtarea(form);
+    }
+  });
+
+  // ----------------------------------------------------------------
+  // Modal/offcanvas submit buttons (replaces onclick handlers removed
+  // from _quick_action_modals.php)
+  // ----------------------------------------------------------------
+  var submitAssignBtn = document.getElementById('qa-assign-submit');
+  if (submitAssignBtn) submitAssignBtn.addEventListener('click', submitQuickAssign);
+  var submitEditBtn = document.getElementById('qa-edit-submit');
+  if (submitEditBtn) submitEditBtn.addEventListener('click', submitQuickEdit);
+  var submitNotaBtn = document.getElementById('qa-nota-submit');
+  if (submitNotaBtn) submitNotaBtn.addEventListener('click', submitQuickNota);
+
+  // ----------------------------------------------------------------
+  // data-action delegation — replaces all onclick on quick-action
+  // buttons (quick-edit, quick-assign, quick-nota) across all views
+  // ----------------------------------------------------------------
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    var action = btn.dataset.action;
+    if (action === 'quick-edit') {
+      var data = {};
+      try { data = JSON.parse(btn.dataset.entityData || '{}'); } catch(ex) {}
+      openQuickEdit(btn.dataset.entityType, btn.dataset.entityId, data);
+    } else if (action === 'quick-assign') {
+      openQuickAssign(
+        btn.dataset.entityType,
+        btn.dataset.entityId,
+        btn.dataset.assigneeId,
+        btn.dataset.entityName
+      );
+    } else if (action === 'quick-nota') {
+      openQuickNota(
+        btn.dataset.entityType,
+        btn.dataset.entityId,
+        btn.dataset.entityName
+      );
     }
   });
 });

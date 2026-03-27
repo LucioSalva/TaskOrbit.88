@@ -33,7 +33,7 @@ foreach ($proyByEstado as $est => $items) {
     </div>
     <div class="kanban-col-body">
       <?php if (empty($items)): ?>
-        <div class="kanban-empty"><i class="bi bi-inbox d-block mb-1" style="font-size:1.5rem"></i>Sin proyectos</div>
+        <div class="kanban-empty"><i class="bi bi-inbox d-block mb-1 icon-md"></i>Sin proyectos</div>
       <?php else: foreach ($items as $p):
         $semaforoNivel = $p['semaforo'] ?? 'neutral';
         $fin   = ($p['fecha_fin'] ?? '') ? new \DateTime($p['fecha_fin']) : null;
@@ -53,7 +53,7 @@ foreach ($proyByEstado as $est => $items) {
               <span class="user-avatar sm" title="<?php echo htmlspecialchars($p['usuario_asignado_nombre']); ?>">
                 <?php echo mb_strtoupper(mb_substr($p['usuario_asignado_nombre'], 0, 1)); ?>
               </span>
-              <small class="text-muted text-truncate" style="max-width:90px"><?php echo htmlspecialchars($p['usuario_asignado_nombre']); ?></small>
+              <small class="text-muted text-truncate mw-90"><?php echo htmlspecialchars($p['usuario_asignado_nombre']); ?></small>
             <?php endif; ?>
             <span class="badge badge-prioridad-<?php echo $p['prioridad'] ?? 'media'; ?> ms-auto"><?php echo ucfirst($p['prioridad'] ?? 'media'); ?></span>
             <?php echo \App\Services\SemaforoService::badge($semaforoNivel); ?>
@@ -76,20 +76,19 @@ foreach ($proyByEstado as $est => $items) {
             <div class="estado-btn-group d-flex gap-1">
               <?php foreach (['por_hacer'=>['PH','Por Hacer'],'haciendo'=>['H','Haciendo'],'terminada'=>['T','Terminada']] as $estVal=>[$estLbl,$estTitle]): ?>
               <form method="POST" action="<?php echo $appUrl; ?>/proyectos/<?php echo $p['id']; ?>/estado"
-                    class="d-inline" onsubmit="return changeEstado(this)">
+                    class="d-inline" data-change-estado>
                 <?php echo \App\Helpers\CSRF::tokenField(); ?>
                 <input type="hidden" name="estado" value="<?php echo $estVal; ?>">
                 <button type="submit"
-                  class="btn btn-xs py-0 px-1 <?php echo $p['estado'] === $estVal ? 'btn-primary active-estado' : 'btn-outline-secondary'; ?>"
+                  class="btn btn-xs py-0 px-1 fs-2xs <?php echo $p['estado'] === $estVal ? 'btn-primary active-estado' : 'btn-outline-secondary'; ?>"
                   data-estado="<?php echo $estVal; ?>"
-                  title="<?php echo $estTitle; ?>"
-                  style="font-size:0.65rem">
+                  title="<?php echo $estTitle; ?>">
                   <?php echo $estLbl; ?>
                 </button>
               </form>
               <?php endforeach; ?>
             </div>
-            <a href="<?php echo $appUrl; ?>/proyectos/<?php echo $p['id']; ?>/tareas" class="btn btn-xs btn-outline-primary py-0 px-1 ms-auto" style="font-size:0.65rem" title="Ver tareas">
+            <a href="<?php echo $appUrl; ?>/proyectos/<?php echo $p['id']; ?>/tareas" class="btn btn-xs btn-outline-primary py-0 px-1 ms-auto fs-2xs" title="Ver tareas">
               <i class="bi bi-list-task"></i>
             </a>
           </div>

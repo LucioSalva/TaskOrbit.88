@@ -63,8 +63,8 @@
     submitBtn.disabled = true;
     var origHtml = submitBtn.innerHTML;
     submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Subiendo...';
-    if (progress) progress.style.display = '';
-    if (feedback) feedback.style.display = 'none';
+    if (progress) progress.classList.remove('d-none');
+    if (feedback) feedback.classList.add('d-none');
 
     var formData = new FormData(form);
 
@@ -83,12 +83,12 @@
     xhr.addEventListener('load', function() {
       submitBtn.disabled = false;
       submitBtn.innerHTML = origHtml;
-      if (progress) progress.style.display = 'none';
+      if (progress) progress.classList.add('d-none');
       if (progressBar) progressBar.style.width = '0%';
 
       if (xhr.status === 419) {
-        alert('La sesión expiró. Recarga la página e intenta de nuevo.');
-        location.reload();
+        console.warn('CSRF token mismatch on evidencia upload.');
+        showFeedback(feedback, 'Error de sesión. Intenta de nuevo.', 'danger');
         return;
       }
 
@@ -110,7 +110,7 @@
     xhr.addEventListener('error', function() {
       submitBtn.disabled = false;
       submitBtn.innerHTML = origHtml;
-      if (progress) progress.style.display = 'none';
+      if (progress) progress.classList.add('d-none');
       showFeedback(feedback, 'Error de conexion. Intenta de nuevo.', 'danger');
     });
 
@@ -189,13 +189,16 @@
         })
         .then(function(r) {
           if (r.status === 419) {
-            alert('La sesión expiró. Recarga la página e intenta de nuevo.');
-            location.reload();
+            console.warn('CSRF token mismatch on evidencia delete.');
+            if (typeof showActionFeedback === 'function') {
+              showActionFeedback('Error de sesión. Intenta de nuevo.', 'error');
+            }
             return Promise.reject('csrf_expired');
           }
           return r.json();
         })
         .then(function(res) {
+          refreshCsrfToken(res);
           if (res.ok) {
             refreshEvidenciasList(panelEl, tipo, entidadId);
             if (typeof showActionFeedback === 'function') {
@@ -218,11 +221,11 @@
 
   function showFeedback(el, msg, type) {
     if (!el) return;
-    el.style.display = '';
+    el.classList.remove('d-none');
     el.className = 'evidencia-feedback mt-1 small text-' + (type === 'danger' ? 'danger' : type === 'warning' ? 'warning' : 'success');
     el.innerHTML = '<i class="bi bi-' + (type === 'success' ? 'check-circle' : 'exclamation-triangle') + ' me-1"></i>' + escapeHtml(msg);
     if (type === 'success') {
-      setTimeout(function() { el.style.display = 'none'; }, 4000);
+      setTimeout(function() { el.classList.add('d-none'); }, 4000);
     }
   }
 

@@ -44,6 +44,28 @@ class Validator
         return in_array($rol, self::$validRoles, true);
     }
 
+    /**
+     * Validate password strength:
+     * - Minimum 8 characters
+     * - At least 1 uppercase letter
+     * - At least 1 number
+     * Returns array of error messages (empty if valid).
+     */
+    public static function validatePassword(string $password): array
+    {
+        $errors = [];
+        if (mb_strlen($password) < 8) {
+            $errors[] = 'La contrasena debe tener al menos 8 caracteres.';
+        }
+        if (!preg_match('/[A-Z]/', $password)) {
+            $errors[] = 'La contrasena debe contener al menos una letra mayuscula.';
+        }
+        if (!preg_match('/[0-9]/', $password)) {
+            $errors[] = 'La contrasena debe contener al menos un numero.';
+        }
+        return $errors;
+    }
+
     public static function isBoolean(mixed $value): bool
     {
         return is_bool($value) || in_array($value, ['true', 'false', '1', '0', 1, 0], true);

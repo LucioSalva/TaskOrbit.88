@@ -77,8 +77,11 @@ class UsuariosController extends Controller
             $errors[] = 'El usuario debe tener al menos 4 caracteres.';
         }
         if (!Validator::required($telefono)) $errors[] = 'El teléfono es requerido.';
-        if (!Validator::required($password) || !Validator::minLength($password, 8)) {
-            $errors[] = 'La contraseña debe tener al menos 8 caracteres.';
+        if (!Validator::required($password)) {
+            $errors[] = 'La contrasena es requerida.';
+        } else {
+            $pwErrors = Validator::validatePassword($password);
+            $errors = array_merge($errors, $pwErrors);
         }
         if (!Validator::isValidRole($rol)) $errors[] = 'Rol inválido.';
 
@@ -144,8 +147,9 @@ class UsuariosController extends Controller
             $errors[] = 'El usuario debe tener al menos 4 caracteres.';
         }
         if (!Validator::isValidRole($rol))   $errors[] = 'Rol inválido.';
-        if ($password && !Validator::minLength($password, 8)) {
-            $errors[] = 'La contraseña debe tener al menos 8 caracteres.';
+        if ($password) {
+            $pwErrors = Validator::validatePassword($password);
+            $errors = array_merge($errors, $pwErrors);
         }
         if ($rol === 'GOD' && $currentUser['rol'] !== 'GOD') {
             $errors[] = 'Solo GOD puede asignar rol GOD.';

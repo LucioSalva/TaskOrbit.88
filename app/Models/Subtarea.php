@@ -46,7 +46,9 @@ class Subtarea
     {
         $db = Database::getInstance();
         return $db->fetchAll(
-            'SELECT * FROM vw_subtareas WHERE tarea_id = ? ORDER BY created_at ASC',
+            'SELECT id, tarea_id, nombre, descripcion, prioridad, estado,
+                    fecha_inicio, fecha_fin, created_by, created_at, updated_at
+             FROM vw_subtareas WHERE tarea_id = ? ORDER BY created_at ASC',
             [$tareaId]
         );
     }
@@ -55,7 +57,9 @@ class Subtarea
     {
         $db = Database::getInstance();
         return $db->fetchOne(
-            'SELECT * FROM vw_subtareas WHERE id = ?',
+            'SELECT id, tarea_id, nombre, descripcion, prioridad, estado,
+                    fecha_inicio, fecha_fin, created_by, created_at, updated_at
+             FROM vw_subtareas WHERE id = ?',
             [$id]
         );
     }
@@ -124,6 +128,11 @@ class Subtarea
         $db->execute('UPDATE subtareas SET deleted_at = ? WHERE id = ?', [$now, $id]);
         $db->execute(
             "UPDATE notas SET deleted_at = ? WHERE scope = 'subtarea' AND referencia_id = ? AND deleted_at IS NULL",
+            [$now, $id]
+        );
+        // Propagate soft delete to evidencias for the subtarea
+        $db->execute(
+            "UPDATE evidencias SET deleted_at = ? WHERE tipo_entidad = 'subtarea' AND entidad_id = ? AND deleted_at IS NULL",
             [$now, $id]
         );
         self::logAudit($actorId, 'SUBTAREA_DELETE', $id, []);

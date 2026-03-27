@@ -1,7 +1,7 @@
 <?php
 $appUrl = rtrim(getenv('APP_URL') ?: '', '/');
 ?>
-<style>
+<style nonce="<?= CSP_NONCE ?>">
   /* ============================================
      NEBULA + SCANLINES (background layers)
      ============================================ */
@@ -404,7 +404,7 @@ $appUrl = rtrim(getenv('APP_URL') ?: '', '/');
 </style>
 
 <!-- Star field canvas -->
-<canvas id="star-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;"></canvas>
+<canvas id="star-canvas" class="star-canvas-bg"></canvas>
 
 <!-- Nebula background -->
 <div class="nebula"></div>
@@ -487,7 +487,7 @@ $appUrl = rtrim(getenv('APP_URL') ?: '', '/');
   </div>
 </div>
 
-<script>
+<script nonce="<?= CSP_NONCE ?>">
 (function () {
   'use strict';
 

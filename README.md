@@ -81,11 +81,6 @@ DB_PASSWORD=your_password
 
 SESSION_NAME=taskorbit_session
 SESSION_LIFETIME=7200
-
-WHATSAPP_MODE=mock
-WHATSAPP_ACCOUNT_SID=
-WHATSAPP_AUTH_TOKEN=
-WHATSAPP_FROM=whatsapp:+14155238886
 ```
 
 Set `APP_DEBUG=true` only in development. Never enable in production.
@@ -112,7 +107,10 @@ taskorbit/
 │   ├── Controllers/            # AuthController, DashboardController, ProyectosController, ...
 │   ├── Models/                 # Proyecto, Tarea, Subtarea, Nota, Usuario, Notificacion
 │   ├── Services/
-│   │   └── WhatsAppService.php # WhatsApp integration (mock / Twilio)
+│   │   ├── NotificacionService.php # In-app notification dispatch
+│   │   ├── NotificacionTemplates.php # Notification message templates
+│   │   ├── EstadoService.php   # State propagation logic
+│   │   └── SemaforoService.php # Traffic light / risk indicator
 │   ├── Helpers/
 │   │   ├── CSRF.php            # CSRF token generation and verification
 │   │   ├── Validator.php       # Input validation helpers
@@ -145,7 +143,6 @@ taskorbit/
 - Project, task, and subtask management with soft-delete
 - Role-based access control on every route
 - In-app notifications
-- WhatsApp alerts on task/project assignment (mock or Twilio)
 - Contextual notes (project, task, subtask, personal)
 - Productivity dashboard with Chart.js charts
 - Dark/light mode toggle (persisted in localStorage)

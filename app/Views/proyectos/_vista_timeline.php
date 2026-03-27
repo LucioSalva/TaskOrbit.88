@@ -59,11 +59,11 @@ $total = array_sum(array_map('count', $buckets));
                 <div>
                   <div class="fw-semibold"><?php echo htmlspecialchars($p['nombre']); ?></div>
                   <div class="d-flex gap-1 mt-1 flex-wrap">
-                    <span class="badge estado-badge badge-estado-<?php echo $p['estado']; ?>" style="font-size:0.65rem"><?php echo ucfirst(str_replace('_',' ',$p['estado'])); ?></span>
-                    <span class="badge badge-prioridad-<?php echo $p['prioridad']??'media'; ?>" style="font-size:0.65rem"><?php echo ucfirst($p['prioridad']??'media'); ?></span>
+                    <span class="badge estado-badge badge-estado-<?php echo $p['estado']; ?> fs-2xs"><?php echo ucfirst(str_replace('_',' ',$p['estado'])); ?></span>
+                    <span class="badge badge-prioridad-<?php echo $p['prioridad']??'media'; ?> fs-2xs"><?php echo ucfirst($p['prioridad']??'media'); ?></span>
                     <?php echo \App\Services\SemaforoService::badge($semaforoNivel); ?>
                     <?php if ($p['usuario_asignado_nombre']??''): ?>
-                      <span class="badge bg-light text-dark" style="font-size:0.65rem">
+                      <span class="badge bg-light text-dark fs-2xs">
                         <i class="bi bi-person me-1"></i><?php echo htmlspecialchars($p['usuario_asignado_nombre']); ?>
                       </span>
                     <?php endif; ?>
@@ -73,14 +73,14 @@ $total = array_sum(array_map('count', $buckets));
                   <?php if ($fin): ?>
                     <div class="timeline-card-date"><?php echo $fin->format('d/m/Y'); ?></div>
                     <?php if ($diff !== null && !in_array($p['estado'], $terminados)): ?>
-                      <div class="<?php echo $diff < 0 ? 'text-danger' : ($diff <= 3 ? 'text-warning' : 'text-muted'); ?>" style="font-size:0.68rem">
+                      <div class="<?php echo $diff < 0 ? 'text-danger' : ($diff <= 3 ? 'text-warning' : 'text-muted'); ?> text-sm-px2">
                         <?php echo $diff < 0 ? 'Venci&oacute; hace '.abs($diff).'d' : ($diff === 0 ? 'Hoy' : 'En '.$diff.'d'); ?>
                       </div>
                     <?php endif; ?>
                   <?php else: ?>
                     <div class="timeline-card-date">Sin fecha</div>
                   <?php endif; ?>
-                  <a href="<?php echo $appUrl; ?>/proyectos/<?php echo $p['id']; ?>/tareas" class="btn btn-xs btn-outline-primary mt-1 py-0 px-1" style="font-size:0.65rem">
+                  <a href="<?php echo $appUrl; ?>/proyectos/<?php echo $p['id']; ?>/tareas" class="btn btn-xs btn-outline-primary mt-1 py-0 px-1 fs-2xs">
                     <i class="bi bi-list-task"></i>
                   </a>
                 </div>

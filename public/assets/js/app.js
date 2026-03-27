@@ -115,6 +115,14 @@ function getCsrfToken() {
   return meta ? meta.getAttribute('content') : '';
 }
 
+// ---- Refresh CSRF token from any JSON response that includes _csrf ----
+function refreshCsrfToken(data) {
+  if (data && data._csrf) {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) meta.setAttribute('content', data._csrf);
+  }
+}
+
 // ---- Notifications ----
 (function initNotifications() {
   document.addEventListener('DOMContentLoaded', () => {
@@ -136,9 +144,9 @@ function getCsrfToken() {
           if (badge) {
             if (data.unread > 0) {
               badge.textContent = data.unread > 99 ? '99+' : data.unread;
-              badge.style.display = '';
+              badge.classList.remove('d-none');
             } else {
-              badge.style.display = 'none';
+              badge.classList.add('d-none');
             }
           }
 
@@ -152,7 +160,7 @@ function getCsrfToken() {
               <div class="notif-item ${!n.is_read ? 'unread' : ''}" data-id="${n.id}">
                 <div class="fw-semibold">${escapeHtml(n.title)}</div>
                 <div class="text-muted">${escapeHtml(n.message)}</div>
-                <div class="text-muted mt-1" style="font-size:0.75rem">${formatDate(n.created_at)}</div>
+                <div class="text-muted mt-1 text-xs-custom">${formatDate(n.created_at)}</div>
               </div>
             `).join('');
 
@@ -180,13 +188,13 @@ function getCsrfToken() {
       })
         .then(r => {
           if (r.status === 419) {
-            alert('La sesión expiró. Recarga la página e intenta de nuevo.');
-            location.reload();
+            console.warn('CSRF token mismatch on markNotifRead — session may have expired.');
             return Promise.reject('csrf_expired');
           }
           return r.json();
         })
         .then(data => {
+          refreshCsrfToken(data);
           if (data.ok && el) el.classList.remove('unread');
           loadNotifications();
         })
@@ -207,13 +215,12 @@ function getCsrfToken() {
         })
           .then(r => {
             if (r.status === 419) {
-              alert('La sesión expiró. Recarga la página e intenta de nuevo.');
-              location.reload();
+              console.warn('CSRF token mismatch on markAll — session may have expired.');
               return Promise.reject('csrf_expired');
             }
             return r.json();
           })
-          .then(() => loadNotifications())
+          .then(data => { refreshCsrfToken(data); loadNotifications(); })
           .catch(() => {});
       });
     }
@@ -227,8 +234,8 @@ function getCsrfToken() {
 (function initAntiDoubleSubmit() {
   document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('form[method="POST"]').forEach(form => {
-      // Skip forms with AJAX handlers (onsubmit=changeEstado, data-ajax-subtarea, notas forms)
-      if (form.getAttribute('onsubmit') ||
+      // Skip forms with AJAX handlers (data-change-estado, data-ajax-subtarea, notas forms)
+      if (form.hasAttribute('data-change-estado') ||
           form.hasAttribute('data-ajax-subtarea') ||
           form.classList.contains('notas-add-form') ||
           form.classList.contains('notas-update-form') ||
@@ -317,7 +324,7 @@ function getCsrfToken() {
     // Only apply to create/edit forms (not filters, not inline AJAX)
     const editForms = document.querySelectorAll('form[method="POST"][action*="/crear"], form[method="POST"][action*="/proyectos"][action$="/editar"], form[method="POST"][action*="/tareas"]');
     editForms.forEach(form => {
-      if (form.hasAttribute('data-ajax-subtarea') || form.getAttribute('onsubmit')) return;
+      if (form.hasAttribute('data-ajax-subtarea') || form.hasAttribute('data-change-estado')) return;
       // Check if this is a proper create/edit form (has name field)
       if (!form.querySelector('[name="nombre"]')) return;
 
@@ -433,12 +440,12 @@ function showEvidenciaRequiredModal(tipo, entidadId) {
                     <i class="bi bi-upload me-1"></i>Subir
                   </button>
                 </div>
-                <div class="form-text" style="font-size:.7rem">Solo PDF y PNG, max 5 MB</div>
+                <div class="form-text text-xxs">Solo PDF y PNG, max 5 MB</div>
               </form>
-              <div class="modal-evidencia-feedback mt-2" style="display:none"></div>
-              <div class="modal-evidencia-progress mt-1" style="display:none">
-                <div class="progress" style="height:4px">
-                  <div class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%"></div>
+              <div class="modal-evidencia-feedback mt-2 d-none"></div>
+              <div class="modal-evidencia-progress mt-1 d-none">
+                <div class="progress progress-h4">
+                  <div class="progress-bar progress-bar-striped progress-bar-animated progress-init-0"></div>
                 </div>
               </div>
             </div>
@@ -485,7 +492,7 @@ function showEvidenciaRequiredModal(tipo, entidadId) {
 
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Subiendo...';
-    if (modalProgress) modalProgress.style.display = '';
+    if (modalProgress) modalProgress.classList.remove('d-none');
 
     var formData = new FormData(modalForm);
     var xhr = new XMLHttpRequest();
@@ -502,7 +509,7 @@ function showEvidenciaRequiredModal(tipo, entidadId) {
     xhr.addEventListener('load', function() {
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="bi bi-upload me-1"></i>Subir';
-      if (modalProgress) modalProgress.style.display = 'none';
+      if (modalProgress) modalProgress.classList.add('d-none');
 
       try {
         var res = JSON.parse(xhr.responseText);
@@ -529,7 +536,7 @@ function showEvidenciaRequiredModal(tipo, entidadId) {
     xhr.addEventListener('error', function() {
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="bi bi-upload me-1"></i>Subir';
-      if (modalProgress) modalProgress.style.display = 'none';
+      if (modalProgress) modalProgress.classList.add('d-none');
       showModalFeedback(modalFeedback, 'Error de conexion.', 'danger');
     });
 
@@ -544,7 +551,7 @@ function showEvidenciaRequiredModal(tipo, entidadId) {
 
 function showModalFeedback(el, msg, type) {
   if (!el) return;
-  el.style.display = '';
+  el.classList.remove('d-none');
   el.className = 'modal-evidencia-feedback mt-2 small alert alert-' + (type === 'danger' ? 'danger' : type === 'warning' ? 'warning' : 'success') + ' py-1 px-2 mb-0';
   el.textContent = msg;
 }
@@ -567,13 +574,17 @@ function doChangeEstado(formEl, url, params, submitBtn, estado) {
   })
     .then(r => {
       if (r.status === 419) {
-        alert('La sesión expiró. Recarga la página e intenta de nuevo.');
-        location.reload();
+        console.warn('CSRF token mismatch on changeEstado — token may be stale.');
+        if (typeof showActionFeedback === 'function') {
+          showActionFeedback('Error de sesión. Intenta de nuevo.', 'error');
+        }
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = ''; }
         return Promise.reject('csrf_expired');
       }
       return r.json();
     })
     .then(res => {
+      refreshCsrfToken(res);
       // Restore button
       if (submitBtn) {
         submitBtn.disabled = false;
@@ -773,6 +784,34 @@ function estadoLabel(estado) {
   return labels[estado] || estado;
 }
 
+// ---- changeEstado delegation for [data-change-estado] forms ----
+// Replaces the removed onsubmit="return changeEstado(this)" inline handlers.
+(function initChangeEstadoDelegation() {
+  document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('submit', function(e) {
+      if (e.target && e.target.matches('[data-change-estado]')) {
+        e.preventDefault();
+        changeEstado(e.target);
+      }
+    });
+  });
+})();
+
+// ---- toggle-next-show delegation ----
+// Replaces onclick="this.nextElementSibling.classList.toggle('show')" on
+// the mobile filter toggle button in proyectos/index.php.
+(function initToggleNextShow() {
+  document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-action="toggle-next-show"]');
+      if (btn) {
+        var next = btn.nextElementSibling;
+        if (next) next.classList.toggle('show');
+      }
+    });
+  });
+})();
+
 // ---- Bootstrap Tooltips init ----
 (function initTooltips() {
   document.addEventListener('DOMContentLoaded', () => {
@@ -789,8 +828,7 @@ function estadoLabel(estado) {
       const max = parseInt(textarea.getAttribute('maxlength'), 10);
       if (!max || max < 100) return; // Only for substantial fields
       const counter = document.createElement('div');
-      counter.className = 'form-text text-end char-counter';
-      counter.style.fontSize = '0.7rem';
+      counter.className = 'form-text text-end char-counter text-xxs';
       counter.textContent = '0 / ' + max;
       textarea.parentNode.insertBefore(counter, textarea.nextSibling);
 
@@ -809,6 +847,24 @@ function estadoLabel(estado) {
       }
       textarea.addEventListener('input', update);
       update();
+    });
+  });
+})();
+
+// ---- CSP Compliance: Initialize progress bars from data-progress-pct ----
+(function initProgressBars() {
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-progress-pct]').forEach(function(el) {
+      el.style.width = el.dataset.progressPct + '%';
+    });
+  });
+})();
+
+// ---- CSP Compliance: Initialize dynamic colors from data-color ----
+(function initDynamicColors() {
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-color]').forEach(function(el) {
+      el.style.color = el.dataset.color;
     });
   });
 })();

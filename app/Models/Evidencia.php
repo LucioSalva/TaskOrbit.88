@@ -14,7 +14,9 @@ class Evidencia
     {
         $db = Database::getInstance();
         return $db->fetchAll(
-            "SELECT e.*, u.nombre_completo AS subido_por_nombre
+            "SELECT e.id, e.tipo_entidad, e.entidad_id, e.nombre_original, e.nombre_guardado,
+                    e.ruta_archivo, e.extension, e.mime_type, e.peso_bytes, e.subido_por,
+                    e.created_at, u.nombre_completo AS subido_por_nombre
              FROM evidencias e
              JOIN usuarios u ON u.id = e.subido_por
              WHERE e.tipo_entidad = ? AND e.entidad_id = ? AND e.deleted_at IS NULL
@@ -27,7 +29,9 @@ class Evidencia
     {
         $db = Database::getInstance();
         return $db->fetchOne(
-            "SELECT e.*, u.nombre_completo AS subido_por_nombre
+            "SELECT e.id, e.tipo_entidad, e.entidad_id, e.nombre_original, e.nombre_guardado,
+                    e.ruta_archivo, e.extension, e.mime_type, e.peso_bytes, e.subido_por,
+                    e.created_at, u.nombre_completo AS subido_por_nombre
              FROM evidencias e
              JOIN usuarios u ON u.id = e.subido_por
              WHERE e.id = ? AND e.deleted_at IS NULL",

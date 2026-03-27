@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="<?php echo \App\Core\View::asset('css/vistas.css'); ?>">
   <link rel="stylesheet" href="<?php echo \App\Core\View::asset('css/mobile.css'); ?>">
 </head>
-<body data-app-url="<?php echo rtrim(getenv('APP_URL') ?: '', '/'); ?>">
+<body data-app-url="<?php echo rtrim(getenv('APP_URL') ?: '', '/'); ?>" data-user-role="<?php echo htmlspecialchars($_SESSION['user']['rol'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
 
 <?php
 $appUrl   = rtrim(getenv('APP_URL') ?: '', '/');
@@ -39,7 +39,7 @@ function isActive(string $prefix, string $current): string {
 <nav id="sidebar">
   <a href="<?php echo $appUrl; ?>/dashboard" class="sidebar-brand">
     <span class="brand-icon">
-      <img src="<?php echo $appUrl; ?>/img/taskorbit.png" alt="TaskOrbit" style="width:24px;height:24px;object-fit:contain;">
+      <img src="<?php echo $appUrl; ?>/img/taskorbit.png" alt="TaskOrbit" class="sidebar-brand-img">
     </span>
     <span class="brand-text">TaskOrbit</span>
   </a>
@@ -55,8 +55,8 @@ function isActive(string $prefix, string $current): string {
       <i class="bi bi-sticky"></i> Notas
     </a>
     <?php if ($userRole === 'GOD'): ?>
-    <hr class="my-2" style="border-color:rgba(255,255,255,0.1)">
-    <div class="px-3 py-1" style="font-size:0.7rem;color:#a5b4fc;text-transform:uppercase;letter-spacing:1px;">Administración</div>
+    <hr class="my-2 sidebar-sep">
+    <div class="sidebar-section-lbl px-3 py-1">Administración</div>
     <a href="<?php echo $appUrl; ?>/admin/usuarios" class="nav-link <?php echo isActive('/admin/usuarios', $currentUri); ?>">
       <i class="bi bi-people"></i> Usuarios
     </a>
@@ -67,7 +67,7 @@ function isActive(string $prefix, string $current): string {
     <div class="d-flex align-items-center gap-2">
       <span class="avatar"><?php echo mb_substr(htmlspecialchars($userName), 0, 1); ?></span>
       <div>
-        <div class="text-white" style="font-size:0.8rem;font-weight:600"><?php echo htmlspecialchars($userName); ?></div>
+        <div class="sidebar-user-name text-white"><?php echo htmlspecialchars($userName); ?></div>
         <span class="badge badge-sm <?php
           echo $userRole === 'GOD' ? 'role-badge-god' : ($userRole === 'ADMIN' ? 'role-badge-admin' : 'role-badge-user');
         ?>"><?php echo htmlspecialchars($userRole); ?></span>
@@ -90,7 +90,7 @@ function isActive(string $prefix, string $current): string {
     </div>
 
     <!-- Mobile: compact page title -->
-    <span class="fw-semibold small text-truncate d-sm-none" style="max-width:120px">
+    <span class="fw-semibold small text-truncate d-sm-none mw-120">
       <?php
       $pageTitles = [
         '/dashboard' => 'Dashboard',
@@ -112,7 +112,7 @@ function isActive(string $prefix, string $current): string {
       <div class="dropdown">
         <button class="btn btn-sm btn-outline-secondary notif-bell position-relative" data-bs-toggle="dropdown" title="Notificaciones">
           <i class="bi bi-bell fs-5"></i>
-          <span id="notif-badge" class="badge bg-danger" style="display:none">0</span>
+          <span id="notif-badge" class="badge bg-danger d-none">0</span>
         </button>
         <div class="dropdown-menu dropdown-menu-end p-0 dropdown-notifications">
           <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
@@ -131,7 +131,7 @@ function isActive(string $prefix, string $current): string {
       </button>
 
       <!-- Logout -->
-      <form method="POST" action="<?php echo $appUrl; ?>/logout" class="d-inline">
+      <form method="POST" action="<?php echo $appUrl; ?>/logout" class="d-inline" data-logout-form>
         <?php echo \App\Helpers\CSRF::tokenField(); ?>
         <button type="submit" class="btn btn-sm btn-outline-danger" title="Cerrar sesion">
           <i class="bi bi-box-arrow-right"></i>
@@ -233,5 +233,12 @@ function isActive(string $prefix, string $current): string {
 <script src="<?php echo \App\Core\View::asset('js/notas-panel.js'); ?>"></script>
 <script src="<?php echo \App\Core\View::asset('js/evidencias.js'); ?>"></script>
 
+<script nonce="<?php echo CSP_NONCE; ?>">
+document.querySelector('[data-logout-form]')?.addEventListener('submit', function() {
+  Object.keys(localStorage).forEach(function(k) {
+    if (k.startsWith('taskorbit.vista.')) localStorage.removeItem(k);
+  });
+});
+</script>
 </body>
 </html>

@@ -117,6 +117,8 @@ class Router
                 if (is_string($mw)) {
                     $mwInstance = new $mw();
                     $mwInstance->handle($params);
+                } elseif (is_object($mw) && method_exists($mw, 'handle')) {
+                    $mw->handle($params);
                 } elseif (is_callable($mw)) {
                     $mw($params);
                 }
@@ -128,11 +130,31 @@ class Router
         }
 
         if ($methodMatched) {
+            // Collect allowed methods for this URI
+            $allowedMethods = [];
+            foreach ($this->routes as $r) {
+                if (preg_match($r['pattern'], $uri)) {
+                    $allowedMethods[] = $r['method'];
+                }
+            }
             http_response_code(405);
-            echo '<h1>405 Método no permitido</h1>';
+            header('Allow: ' . implode(', ', array_unique($allowedMethods)));
+            $errorFile = APP_PATH . '/Views/errors/405.php';
+            if (file_exists($errorFile)) {
+                include $errorFile;
+            } else {
+                echo '<h1>405 — Método no permitido</h1>';
+            }
+            exit;
         } else {
             http_response_code(404);
-            echo '<h1>404 Página no encontrada</h1>';
+            $errorFile = APP_PATH . '/Views/errors/404.php';
+            if (file_exists($errorFile)) {
+                include $errorFile;
+            } else {
+                echo '<h1>404 — Página no encontrada</h1>';
+            }
+            exit;
         }
     }
 
@@ -154,6 +176,7 @@ class Router
             return;
         }
 
-        throw new \RuntimeException("Handler inválido: " . print_r($handler, true));
+        error_log('[Router] Handler invalido detectado para la ruta actual.');
+        throw new \RuntimeException("Handler inválido para la ruta solicitada.");
     }
 }

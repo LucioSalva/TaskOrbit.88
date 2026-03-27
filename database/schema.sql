@@ -116,10 +116,11 @@ CREATE TABLE IF NOT EXISTS notas (
   id           SERIAL       PRIMARY KEY,
   scope        VARCHAR(20)  NOT NULL CHECK (scope IN ('personal','proyecto','tarea','subtarea')),
   referencia_id INT         DEFAULT NULL,
-  user_id      INT          NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  titulo       VARCHAR(160) DEFAULT NULL,
+  user_id      INT          REFERENCES usuarios(id) ON DELETE CASCADE,
+  titulo       VARCHAR(200) DEFAULT NULL,
   contenido    TEXT         NOT NULL,
   tipo         VARCHAR(30)  DEFAULT 'personal',
+  is_pinned    BOOLEAN      NOT NULL DEFAULT FALSE,
   deleted_at   TIMESTAMPTZ  DEFAULT NULL,
   created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
@@ -134,7 +135,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   title        VARCHAR(200) NOT NULL,
   message      TEXT        NOT NULL,
   severity     VARCHAR(20) NOT NULL DEFAULT 'info' CHECK (severity IN ('info','success','warning','danger')),
-  channel      VARCHAR(20) NOT NULL DEFAULT 'in_app' CHECK (channel IN ('in_app','whatsapp','email')),
+  channel      VARCHAR(20) NOT NULL DEFAULT 'in_app' CHECK (channel IN ('in_app','email')),
   entity_type  VARCHAR(40) DEFAULT NULL,
   entity_id    INT         DEFAULT NULL,
   read         BOOLEAN     NOT NULL DEFAULT FALSE,
@@ -143,6 +144,23 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 COMMENT ON TABLE notifications IS 'Notificaciones en la app y canales externos';
+
+-- evidencias
+CREATE TABLE IF NOT EXISTS evidencias (
+  id               SERIAL PRIMARY KEY,
+  tipo_entidad     VARCHAR(20) NOT NULL CHECK (tipo_entidad IN ('proyecto','tarea','subtarea')),
+  entidad_id       INT NOT NULL,
+  nombre_original  VARCHAR(255) NOT NULL,
+  nombre_guardado  VARCHAR(255) NOT NULL,
+  ruta_archivo     VARCHAR(500) NOT NULL,
+  extension        VARCHAR(10) NOT NULL,
+  mime_type        VARCHAR(100) NOT NULL,
+  peso_bytes       INT NOT NULL,
+  subido_por       INT NOT NULL REFERENCES usuarios(id) ON DELETE RESTRICT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at       TIMESTAMPTZ DEFAULT NULL
+);
+COMMENT ON TABLE evidencias IS 'Archivos de evidencia adjuntos a proyectos, tareas y subtareas';
 
 -- audit_logs
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -177,6 +195,10 @@ CREATE INDEX IF NOT EXISTS idx_subtareas_deleted        ON subtareas(deleted_at)
 
 CREATE INDEX IF NOT EXISTS idx_notas_scope_ref         ON notas(scope, referencia_id)   WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_notas_user              ON notas(user_id)                WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_notas_pinned            ON notas(scope, referencia_id, is_pinned DESC, created_at DESC) WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_evidencias_entidad      ON evidencias(tipo_entidad, entidad_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_evidencias_subido_por   ON evidencias(subido_por) WHERE deleted_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user      ON notifications(user_id, read);
 CREATE INDEX IF NOT EXISTS idx_audit_actor             ON audit_logs(actor_id, created_at DESC);

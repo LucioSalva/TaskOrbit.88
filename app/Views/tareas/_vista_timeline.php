@@ -63,16 +63,16 @@ $totalTimeline = array_sum(array_map('count', $buckets));
                 <div>
                   <div class="fw-semibold"><?php echo htmlspecialchars($t['nombre']); ?></div>
                   <div class="d-flex gap-1 mt-1 flex-wrap">
-                    <span class="badge estado-badge badge-estado-<?php echo $t['estado']; ?>" style="font-size:0.65rem"><?php echo ucfirst(str_replace('_',' ',$t['estado'])); ?></span>
-                    <span class="badge badge-prioridad-<?php echo $t['prioridad']??'media'; ?>" style="font-size:0.65rem"><?php echo ucfirst($t['prioridad']??'media'); ?></span>
+                    <span class="badge estado-badge badge-estado-<?php echo $t['estado']; ?> text-2xs"><?php echo ucfirst(str_replace('_',' ',$t['estado'])); ?></span>
+                    <span class="badge badge-prioridad-<?php echo $t['prioridad']??'media'; ?> text-2xs"><?php echo ucfirst($t['prioridad']??'media'); ?></span>
                     <?php echo \App\Services\SemaforoService::badge($semaforoNivel); ?>
                     <?php if ($t['usuario_asignado_nombre']??''): ?>
-                      <span class="badge bg-light text-dark" style="font-size:0.65rem">
+                      <span class="badge bg-light text-dark text-2xs">
                         <i class="bi bi-person me-1"></i><?php echo htmlspecialchars($t['usuario_asignado_nombre']); ?>
                       </span>
                     <?php endif; ?>
                     <?php if ($subTotal > 0): ?>
-                      <span class="badge bg-light text-dark" style="font-size:0.65rem">
+                      <span class="badge bg-light text-dark text-2xs">
                         <i class="bi bi-check2-square me-1"></i><?php echo $subDone; ?>/<?php echo $subTotal; ?>
                       </span>
                     <?php endif; ?>
@@ -82,7 +82,7 @@ $totalTimeline = array_sum(array_map('count', $buckets));
                   <?php if ($fin): ?>
                     <div class="timeline-card-date"><?php echo $fin->format('d/m/Y'); ?></div>
                     <?php if ($diff !== null && !in_array($t['estado'], $terminados)): ?>
-                      <div class="<?php echo $diff < 0 ? 'text-danger' : ($diff <= 3 ? 'text-warning' : 'text-muted'); ?>" style="font-size:0.68rem">
+                      <div class="<?php echo $diff < 0 ? 'text-danger' : ($diff <= 3 ? 'text-warning' : 'text-muted'); ?> text-sm-px2">
                         <?php echo $diff < 0 ? 'Venci&oacute; hace '.abs($diff).'d' : ($diff === 0 ? 'Hoy' : 'En '.$diff.'d'); ?>
                       </div>
                     <?php endif; ?>
@@ -90,41 +90,57 @@ $totalTimeline = array_sum(array_map('count', $buckets));
                     <div class="timeline-card-date">Sin fecha</div>
                   <?php endif; ?>
                   <?php if (in_array($role, ['ADMIN','GOD'])): ?>
-                  <a href="<?php echo $appUrl; ?>/tareas/<?php echo $t['id']; ?>/editar" class="btn btn-xs btn-outline-primary mt-1 py-0 px-1" style="font-size:0.65rem">
+                  <a href="<?php echo $appUrl; ?>/tareas/<?php echo $t['id']; ?>/editar" class="btn btn-xs btn-outline-primary mt-1 py-0 px-1 text-2xs">
                     <i class="bi bi-pencil"></i>
                   </a>
                   <?php endif; ?>
                 </div>
               </div>
               <div class="kanban-card-actions mt-2 d-flex flex-wrap gap-1 align-items-center">
-                <!-- Estado buttons -->
+                <!-- Estado buttons (only if user can change this task's status) -->
+                <?php
+                $canChangeEstado = ($role === 'GOD') ||
+                                   (in_array($role, ['ADMIN', 'USER']) &&
+                                    (int)($t['usuario_asignado_id'] ?? 0) === (int)($user['id'] ?? 0));
+                ?>
+                <?php if ($canChangeEstado): ?>
                 <div class="estado-btn-group d-flex gap-1" data-tarea-id="<?php echo $t['id']; ?>">
                   <?php foreach (['por_hacer'=>'PH','haciendo'=>'H','terminada'=>'T'] as $estVal=>$estLbl): ?>
-                  <form method="POST" action="<?php echo $appUrl; ?>/tareas/<?php echo $t['id']; ?>/estado" class="d-inline" onsubmit="return changeEstado(this)">
+                  <form method="POST" action="<?php echo $appUrl; ?>/tareas/<?php echo $t['id']; ?>/estado" class="d-inline" data-change-estado>
                     <?php echo \App\Helpers\CSRF::tokenField(); ?>
                     <input type="hidden" name="estado" value="<?php echo $estVal; ?>">
                     <button type="submit"
-                      class="btn btn-xs py-0 px-1 <?php echo $t['estado'] === $estVal ? 'btn-primary active-estado' : 'btn-outline-secondary'; ?>"
+                      class="btn btn-xs py-0 px-1 text-2xs <?php echo $t['estado'] === $estVal ? 'btn-primary active-estado' : 'btn-outline-secondary'; ?>"
                       data-estado="<?php echo $estVal; ?>"
-                      title="<?php echo ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Terminada'][$estVal]; ?>"
-                      style="font-size:0.65rem"><?php echo $estLbl; ?></button>
+                      title="<?php echo ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Terminada'][$estVal]; ?>"><?php echo $estLbl; ?></button>
                   </form>
                   <?php endforeach; ?>
                 </div>
+                <?php endif; ?>
                 <!-- Quick actions -->
                 <?php if (in_array($role, ['ADMIN','GOD'])): ?>
-                <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1 ms-auto" style="font-size:0.65rem"
+                <button type="button" class="btn btn-xs btn-outline-primary py-0 px-1 ms-auto text-2xs"
                   title="Editar"
-                  onclick="openQuickEdit('tarea', <?php echo $t['id']; ?>, {nombre:<?php echo json_encode($t['nombre']); ?>,descripcion:<?php echo json_encode($t['descripcion']??''); ?>,fechaFin:<?php echo json_encode($t['fecha_fin']??''); ?>,prioridad:<?php echo json_encode($t['prioridad']??'media'); ?>})">
+                  data-action="quick-edit"
+                  data-entity-type="tarea"
+                  data-entity-id="<?php echo (int)$t['id']; ?>"
+                  data-entity-data="<?php echo htmlspecialchars(json_encode(['nombre'=>$t['nombre'],'descripcion'=>$t['descripcion']??'','fechaFin'=>$t['fecha_fin']??'','prioridad'=>$t['prioridad']??'media']), ENT_QUOTES); ?>">
                   <i class="bi bi-pencil-square"></i></button>
-                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" style="font-size:0.65rem"
+                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 text-2xs"
                   title="Reasignar"
-                  onclick="openQuickAssign('tarea', <?php echo $t['id']; ?>, <?php echo (int)($t['usuario_asignado_id']??0); ?>, <?php echo json_encode($t['nombre']); ?>)">
+                  data-action="quick-assign"
+                  data-entity-type="tarea"
+                  data-entity-id="<?php echo (int)$t['id']; ?>"
+                  data-assignee-id="<?php echo (int)($t['usuario_asignado_id']??0); ?>"
+                  data-entity-name="<?php echo htmlspecialchars($t['nombre'], ENT_QUOTES); ?>">
                   <i class="bi bi-person-check"></i></button>
                 <?php endif; ?>
-                <button type="button" class="btn btn-xs btn-outline-info py-0 px-1" style="font-size:0.65rem"
+                <button type="button" class="btn btn-xs btn-outline-info py-0 px-1 text-2xs"
                   title="Nota"
-                  onclick="openQuickNota('tarea', <?php echo $t['id']; ?>, <?php echo json_encode($t['nombre']); ?>)">
+                  data-action="quick-nota"
+                  data-entity-type="tarea"
+                  data-entity-id="<?php echo (int)$t['id']; ?>"
+                  data-entity-name="<?php echo htmlspecialchars($t['nombre'], ENT_QUOTES); ?>">
                   <i class="bi bi-sticky"></i></button>
               </div>
             </div>

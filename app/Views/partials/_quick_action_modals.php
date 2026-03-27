@@ -14,7 +14,7 @@
         <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body py-3">
-        <div class="text-muted small mb-2" id="qa-assign-entity-name" style="font-size:0.75rem"></div>
+        <div class="text-muted small mb-2 text-xs-custom" id="qa-assign-entity-name"></div>
         <input type="hidden" id="qa-assign-entity-type">
         <input type="hidden" id="qa-assign-entity-id">
         <label class="form-label small fw-semibold">Responsable</label>
@@ -24,7 +24,7 @@
       </div>
       <div class="modal-footer py-2">
         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-sm btn-primary" id="qa-assign-submit" onclick="submitQuickAssign()">
+        <button type="button" class="btn btn-sm btn-primary" id="qa-assign-submit">
           <span class="spinner-border spinner-border-sm d-none me-1" id="qa-assign-spinner"></span>
           Asignar
         </button>
@@ -37,8 +37,7 @@
      OFFCANVAS: Quick Edit
      Opens via: openQuickEdit(type, id, data)
      ================================================ -->
-<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvas-quick-edit" aria-labelledby="qa-edit-title"
-     style="width:min(380px,100vw)">
+<div class="offcanvas offcanvas-end offcanvas-w-380" tabindex="-1" id="offcanvas-quick-edit" aria-labelledby="qa-edit-title">
   <div class="offcanvas-header border-bottom py-2">
     <h6 class="offcanvas-title mb-0" id="qa-edit-title">
       <i class="bi bi-pencil-square me-2 text-warning"></i>Edici&oacute;n r&aacute;pida
@@ -46,7 +45,7 @@
     <button type="button" class="btn-close btn-sm" data-bs-dismiss="offcanvas"></button>
   </div>
   <div class="offcanvas-body">
-    <div class="text-muted small mb-3" id="qa-edit-entity-name" style="font-size:0.75rem"></div>
+    <div class="text-muted small mb-3 text-xs-custom" id="qa-edit-entity-name"></div>
     <input type="hidden" id="qa-edit-entity-type">
     <input type="hidden" id="qa-edit-entity-id">
 
@@ -76,7 +75,7 @@
   </div>
   <div class="offcanvas-footer border-top p-3 d-flex gap-2 justify-content-end">
     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="offcanvas">Cancelar</button>
-    <button type="button" class="btn btn-sm btn-warning" id="qa-edit-submit" onclick="submitQuickEdit()">
+    <button type="button" class="btn btn-sm btn-warning" id="qa-edit-submit">
       <span class="spinner-border spinner-border-sm d-none me-1" id="qa-edit-spinner"></span>
       Guardar cambios
     </button>
@@ -97,7 +96,7 @@
         <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body py-3">
-        <div class="text-muted small mb-2" id="qa-nota-entity-name" style="font-size:0.75rem"></div>
+        <div class="text-muted small mb-2 text-xs-custom" id="qa-nota-entity-name"></div>
         <input type="hidden" id="qa-nota-entity-type">
         <input type="hidden" id="qa-nota-entity-id">
         <div class="mb-3">
@@ -113,7 +112,7 @@
       </div>
       <div class="modal-footer py-2">
         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-sm btn-info text-white" id="qa-nota-submit" onclick="submitQuickNota()">
+        <button type="button" class="btn btn-sm btn-info text-white" id="qa-nota-submit">
           <span class="spinner-border spinner-border-sm d-none me-1" id="qa-nota-spinner"></span>
           Guardar nota
         </button>
@@ -125,4 +124,4 @@
 <!-- ================================================
      TOAST CONTAINER (feedback for AJAX actions)
      ================================================ -->
-<div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1100"></div>
+<div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3 z-1100"></div>

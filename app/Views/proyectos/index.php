@@ -26,7 +26,7 @@ $activeFilterCount = (!empty($filtros['estado']) ? 1 : 0) + (!empty($filtros['pr
   <div class="card-body py-2">
     <!-- Mobile filter toggle -->
     <button class="btn btn-sm btn-outline-secondary w-100 d-flex align-items-center justify-content-between mobile-filters-toggle"
-            type="button" onclick="this.nextElementSibling.classList.toggle('show')">
+            type="button" data-action="toggle-next-show">
       <span><i class="bi bi-funnel me-1"></i>Filtros<?php if ($hasActiveFilters): ?> <span class="badge bg-primary ms-1"><?php echo $activeFilterCount; ?></span><?php endif; ?></span>
       <i class="bi bi-chevron-down"></i>
     </button>
@@ -130,19 +130,19 @@ $proyectosFiltrados = $proyectos ?? [];
   <div class="vista-panel" data-vista="lista">
     <?php include __DIR__ . '/_vista_lista.php'; ?>
   </div>
-  <div class="vista-panel" data-vista="kanban" style="display:none">
+  <div class="vista-panel d-none" data-vista="kanban">
     <?php include __DIR__ . '/_vista_kanban.php'; ?>
   </div>
-  <div class="vista-panel" data-vista="usuario" style="display:none">
+  <div class="vista-panel d-none" data-vista="usuario">
     <?php include __DIR__ . '/_vista_usuario.php'; ?>
   </div>
-  <div class="vista-panel" data-vista="timeline" style="display:none">
+  <div class="vista-panel d-none" data-vista="timeline">
     <?php include __DIR__ . '/_vista_timeline.php'; ?>
   </div>
 </div>
 <?php if (!empty($usuarios ?? [])): ?>
-<script>var USUARIOS_ASIGNABLES = <?php echo json_encode(array_map(fn($u) => ['id'=>$u['id'],'nombre_completo'=>$u['nombre_completo'],'rol'=>$u['rol']??''], $usuarios ?? [])); ?>;</script>
+<script nonce="<?= CSP_NONCE ?>">var USUARIOS_ASIGNABLES = <?php echo json_encode(array_map(fn($u) => ['id'=>$u['id'],'nombre_completo'=>$u['nombre_completo'],'rol'=>$u['rol']??''], $usuarios ?? [])); ?>;</script>
 <?php elseif (!isset($GLOBALS['USUARIOS_ASIGNABLES_SET'])): ?>
-<script>if(typeof USUARIOS_ASIGNABLES === 'undefined') var USUARIOS_ASIGNABLES = [];</script>
+<script nonce="<?= CSP_NONCE ?>">if(typeof USUARIOS_ASIGNABLES === 'undefined') var USUARIOS_ASIGNABLES = [];</script>
 <?php endif; ?>
 <script src="<?php echo \App\Core\View::asset('js/proyectos.js'); ?>"></script>

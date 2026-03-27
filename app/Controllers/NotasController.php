@@ -39,7 +39,6 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Controller;
-use App\Core\Database;
 use App\Helpers\{CSRF, Validator, DateHelper};
 use App\Models\{Nota, Notificacion, Proyecto, Subtarea, Tarea};
 
@@ -49,26 +48,12 @@ class NotasController extends Controller
     {
         $this->requireAuth();
         $user = $this->currentUser();
-        $db   = Database::getInstance();
 
         $notas     = Nota::getAllForUser($user['id'], $user['rol']);
-        $proyectos = $db->fetchAll(
-            $user['rol'] === 'GOD'
-                ? 'SELECT id, nombre FROM vw_proyectos ORDER BY nombre'
-                : 'SELECT id, nombre FROM vw_proyectos WHERE ' .
-                  ($user['rol'] === 'ADMIN' ? '(created_by = ? OR usuario_asignado_id = ?)' : 'usuario_asignado_id = ?') . ' ORDER BY nombre',
-            $user['rol'] === 'GOD' ? [] : ($user['rol'] === 'ADMIN' ? [$user['id'], $user['id']] : [$user['id']])
-        );
+        $proyectos = Proyecto::getListForUser($user['id'], $user['rol']);
 
         $proyectoIds = array_column($proyectos, 'id');
-        $tareas = [];
-        if ($proyectoIds) {
-            $ph = implode(',', array_fill(0, count($proyectoIds), '?'));
-            $tareas = $db->fetchAll(
-                "SELECT id, nombre, proyecto_id FROM vw_tareas WHERE proyecto_id IN ($ph) ORDER BY nombre",
-                $proyectoIds
-            );
-        }
+        $tareas = Tarea::getListByProyectoIds($proyectoIds);
 
         $this->view('notas/index', [
             'flash'     => $this->getFlash(),

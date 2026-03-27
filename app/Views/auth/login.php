@@ -1,7 +1,7 @@
 <div class="card shadow-lg border-0 rounded-4 p-4">
   <div class="text-center mb-4">
     <div class="auth-logo mb-3">
-      <i class="bi bi-diagram-3-fill"></i>
+      <img src="<?php echo \App\Core\View::url('img/taskorbit.png'); ?>" alt="TaskOrbit" class="auth-logo-img">
     </div>
     <h1 class="h4 fw-bold mb-1">TaskOrbit</h1>
     <p class="text-muted small mb-0">Gestión de proyectos y tareas</p>
@@ -58,12 +58,12 @@
     </button>
   </form>
 
-  <p class="text-center text-muted mt-3 mb-0" style="font-size:0.75rem">
+  <p class="text-center text-muted mt-3 mb-0 text-xs-custom">
     <i class="bi bi-shield-lock me-1"></i>Acceso seguro · TaskOrbit &copy; <?php echo date('Y'); ?>
   </p>
 </div>
 
-<script>
+<script nonce="<?= CSP_NONCE ?>">
 document.getElementById('toggle-password')?.addEventListener('click', function() {
   const pwd = document.getElementById('password');
   const icon = this.querySelector('i');

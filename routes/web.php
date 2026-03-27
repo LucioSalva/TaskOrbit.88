@@ -2,8 +2,7 @@
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 
-$auth    = [AuthMiddleware::class];
-$godOnly = [AuthMiddleware::class, new RoleMiddleware(['GOD'])];
+$auth = [AuthMiddleware::class];
 
 // Public routes
 $router->get('/', function() {
@@ -14,7 +13,6 @@ $router->get('/', function() {
 $router->get('/login', 'AuthController@showLogin');
 $router->post('/login', 'AuthController@login');
 $router->post('/logout', 'AuthController@logout');
-$router->get('/logout', 'AuthController@logoutGet');
 $router->get('/acceso-denegado', 'AuthController@accessDenied');
 
 // Protected routes
@@ -38,6 +36,7 @@ $router->group($auth, function ($r) {
     $r->get('/proyectos/{proyectoId}/tareas', 'TareasController@index');
     $r->get('/proyectos/{proyectoId}/tareas/crear', 'TareasController@create');
     $r->post('/proyectos/{proyectoId}/tareas', 'TareasController@store');
+    $r->get('/tareas/{id}', 'TareasController@show');
     $r->get('/tareas/{id}/editar', 'TareasController@edit');
     $r->post('/tareas/{id}/editar', 'TareasController@update');
     $r->post('/tareas/{id}/estado', 'TareasController@updateEstado');

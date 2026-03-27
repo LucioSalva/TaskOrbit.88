@@ -46,11 +46,13 @@ class Nota
     {
         $db = Database::getInstance();
         return $db->fetchAll(
-            'SELECT n.*, COALESCE(u.nombre_completo, \'Sistema\') AS autor_nombre
+            "SELECT n.id, n.scope, n.referencia_id, n.user_id, n.titulo, n.contenido,
+                    n.tipo, n.is_pinned, n.created_at, n.updated_at,
+                    COALESCE(u.nombre_completo, 'Sistema') AS autor_nombre
              FROM notas n
              LEFT JOIN usuarios u ON u.id = n.user_id
              WHERE n.scope = ? AND n.referencia_id = ? AND n.deleted_at IS NULL
-             ORDER BY n.is_pinned DESC, n.created_at DESC',
+             ORDER BY n.is_pinned DESC, n.created_at DESC",
             [$scope, $referenciaId]
         );
     }
@@ -64,10 +66,12 @@ class Nota
     {
         $db = Database::getInstance();
         return $db->fetchOne(
-            'SELECT n.*, COALESCE(u.nombre_completo, \'Sistema\') AS autor_nombre
+            "SELECT n.id, n.scope, n.referencia_id, n.user_id, n.titulo, n.contenido,
+                    n.tipo, n.is_pinned, n.created_at, n.updated_at,
+                    COALESCE(u.nombre_completo, 'Sistema') AS autor_nombre
              FROM notas n
              LEFT JOIN usuarios u ON u.id = n.user_id
-             WHERE n.id = ? AND n.deleted_at IS NULL',
+             WHERE n.id = ? AND n.deleted_at IS NULL",
             [$id]
         );
     }
@@ -76,7 +80,9 @@ class Nota
     {
         $db = Database::getInstance();
         return $db->fetchAll(
-            "SELECT n.*, COALESCE(u.nombre_completo, 'Sistema') AS autor_nombre
+            "SELECT n.id, n.scope, n.referencia_id, n.user_id, n.titulo, n.contenido,
+                    n.tipo, n.is_pinned, n.created_at, n.updated_at,
+                    COALESCE(u.nombre_completo, 'Sistema') AS autor_nombre
              FROM notas n
              LEFT JOIN usuarios u ON u.id = n.user_id
              WHERE n.scope = 'personal' AND n.user_id = ? AND n.deleted_at IS NULL
@@ -91,17 +97,22 @@ class Nota
 
         if ($role === 'GOD') {
             return $db->fetchAll(
-                "SELECT n.*, COALESCE(u.nombre_completo, 'Sistema') AS autor_nombre
+                "SELECT n.id, n.scope, n.referencia_id, n.user_id, n.titulo, n.contenido,
+                    n.tipo, n.is_pinned, n.created_at, n.updated_at,
+                    COALESCE(u.nombre_completo, 'Sistema') AS autor_nombre
                  FROM notas n
                  LEFT JOIN usuarios u ON u.id = n.user_id
                  WHERE n.deleted_at IS NULL
-                 ORDER BY n.is_pinned DESC, n.created_at DESC"
+                 ORDER BY n.is_pinned DESC, n.created_at DESC
+                 LIMIT 500"
             );
         }
 
         if ($role === 'ADMIN') {
             return $db->fetchAll(
-                "SELECT n.*, COALESCE(u.nombre_completo, 'Sistema') AS autor_nombre
+                "SELECT n.id, n.scope, n.referencia_id, n.user_id, n.titulo, n.contenido,
+                    n.tipo, n.is_pinned, n.created_at, n.updated_at,
+                    COALESCE(u.nombre_completo, 'Sistema') AS autor_nombre
                  FROM notas n
                  LEFT JOIN usuarios u ON u.id = n.user_id
                  WHERE n.deleted_at IS NULL
@@ -122,14 +133,17 @@ class Nota
                            WHERE (p.created_by = ? OR p.usuario_asignado_id = ?) AND s.deleted_at IS NULL AND t.deleted_at IS NULL AND p.deleted_at IS NULL
                          ))
                    )
-                 ORDER BY n.is_pinned DESC, n.created_at DESC",
+                 ORDER BY n.is_pinned DESC, n.created_at DESC
+                 LIMIT 500",
                 [$userId, $userId, $userId, $userId, $userId, $userId, $userId]
             );
         }
 
         // USER sees: own personal notes + notes on projects/tasks/subtasks assigned to them
         return $db->fetchAll(
-            "SELECT n.*, COALESCE(u.nombre_completo, 'Sistema') AS autor_nombre
+            "SELECT n.id, n.scope, n.referencia_id, n.user_id, n.titulo, n.contenido,
+                    n.tipo, n.is_pinned, n.created_at, n.updated_at,
+                    COALESCE(u.nombre_completo, 'Sistema') AS autor_nombre
              FROM notas n
              LEFT JOIN usuarios u ON u.id = n.user_id
              WHERE n.deleted_at IS NULL
@@ -152,7 +166,8 @@ class Nota
                          AND s.deleted_at IS NULL AND t.deleted_at IS NULL AND p.deleted_at IS NULL
                      ))
                )
-             ORDER BY n.is_pinned DESC, n.created_at DESC",
+             ORDER BY n.is_pinned DESC, n.created_at DESC
+             LIMIT 500",
             [$userId, $userId, $userId, $userId]
         );
     }

@@ -16,7 +16,7 @@ $canEdit = in_array($role, ['ADMIN','GOD']);
   </ol>
 </nav>
 
-<div class="card" style="max-width:700px">
+<div class="card mw-700">
   <div class="card-header fw-semibold">
     <i class="bi bi-pencil me-2 text-warning"></i>Editar Tarea
   </div>

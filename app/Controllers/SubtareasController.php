@@ -327,13 +327,22 @@ class SubtareasController extends Controller
             $this->redirect('/proyectos'); return;
         }
 
-        // USER can only change estado of subtasks on tasks/projects assigned to them
-        if ($user['rol'] === 'USER') {
-            $efectivo = (int)($tarea['usuario_asignado_id'] ?? 0) ?: (int)($proyecto['usuario_asignado_id'] ?? 0);
-            if ($efectivo !== (int)$user['id']) {
-                if ($isAjax) { $this->json(['ok' => false, 'message' => 'No tienes acceso a esta subtarea.'], 403); return; }
-                $this->flash('error', 'No tienes acceso a esta subtarea.');
-                $this->back(); return;
+        // GOD can always change any subtask status.
+        // ADMIN can change status if they are within scope of the parent project (created_by or assigned).
+        // USER can only change status if assigned to the parent task or project.
+        if ($user['rol'] !== 'GOD') {
+            if ($user['rol'] === 'ADMIN') {
+                // ADMIN scope: must have access to the parent project (already validated above via checkAccess)
+                // checkAccess already returned true for ADMIN if they created or are assigned to the project
+                // No further restriction needed here — ADMIN with project access can update subtask estado
+            } else {
+                // USER: must be the assigned user on the parent task or project
+                $efectivo = (int)($tarea['usuario_asignado_id'] ?? 0) ?: (int)($proyecto['usuario_asignado_id'] ?? 0);
+                if ($efectivo !== (int)$user['id']) {
+                    if ($isAjax) { $this->json(['ok' => false, 'message' => 'No tienes acceso a esta subtarea.'], 403); return; }
+                    $this->flash('error', 'No tienes acceso a esta subtarea.');
+                    $this->back(); return;
+                }
             }
         }
 

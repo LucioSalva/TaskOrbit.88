@@ -104,7 +104,7 @@ class Proyecto
                 $createdBy,
             ];
 
-            error_log('[Proyecto::create] SQL params: ' . json_encode($params));
+            error_log('[Proyecto::create] Ejecutando INSERT en proyectos.');
 
             $stmt = $db->query(
                 'INSERT INTO proyectos
@@ -245,6 +245,30 @@ class Proyecto
                 [$now, 'proyecto', $id]
             );
 
+            // Propagate soft delete to evidencias for the proyecto
+            $db->execute(
+                "UPDATE evidencias SET deleted_at = ? WHERE tipo_entidad = 'proyecto' AND entidad_id = ? AND deleted_at IS NULL",
+                [$now, $id]
+            );
+
+            // Propagate soft delete to evidencias for child tareas
+            if ($taskIds) {
+                $ph = implode(',', array_fill(0, count($taskIds), '?'));
+                $db->execute(
+                    "UPDATE evidencias SET deleted_at = ? WHERE tipo_entidad = 'tarea' AND entidad_id IN ($ph) AND deleted_at IS NULL",
+                    array_merge([$now], $taskIds)
+                );
+            }
+
+            // Propagate soft delete to evidencias for child subtareas
+            if ($subtaskIds) {
+                $ph = implode(',', array_fill(0, count($subtaskIds), '?'));
+                $db->execute(
+                    "UPDATE evidencias SET deleted_at = ? WHERE tipo_entidad = 'subtarea' AND entidad_id IN ($ph) AND deleted_at IS NULL",
+                    array_merge([$now], $subtaskIds)
+                );
+            }
+
             $db->commit();
         } catch (\Throwable $e) {
             $db->rollback();
@@ -285,6 +309,28 @@ class Proyecto
             'subtareas' => $subtareas['total'] ?? 0,
             'notas'     => $notas['total'] ?? 0,
         ];
+    }
+
+    /**
+     * Get lightweight project list (id, nombre) visible to the given user/role.
+     * Used by NotasController for scope dropdowns.
+     */
+    public static function getListForUser(int $userId, string $role): array
+    {
+        $db = Database::getInstance();
+        if ($role === 'GOD') {
+            return $db->fetchAll('SELECT id, nombre FROM vw_proyectos ORDER BY nombre');
+        }
+        if ($role === 'ADMIN') {
+            return $db->fetchAll(
+                'SELECT id, nombre FROM vw_proyectos WHERE (created_by = ? OR usuario_asignado_id = ?) ORDER BY nombre',
+                [$userId, $userId]
+            );
+        }
+        return $db->fetchAll(
+            'SELECT id, nombre FROM vw_proyectos WHERE usuario_asignado_id = ? ORDER BY nombre',
+            [$userId]
+        );
     }
 
     public static function checkAccess(array $proyecto, int $userId, string $role): bool

@@ -98,8 +98,7 @@ Panel principal con resumen del sistema.
 - Relacion con proyecto
 
 **Requerimientos adicionales:**
-- Al asignar una tarea debe generarse una alerta por WhatsApp
-- Si no existe integracion real, la estructura debe estar lista o simulada
+- Al asignar una tarea debe generarse una notificacion in-app al responsable
 
 ---
 
@@ -183,7 +182,7 @@ La interfaz debe sentirse como una herramienta:
 6. Dentro del proyecto, crea Tareas
 7. Dentro de la tarea, crea Subtareas
 8. Asigna responsables a tareas o subtareas
-9. El responsable recibe alerta por WhatsApp
+9. El responsable recibe notificacion in-app
 10. El responsable cambia el estatus con botones rapidos
 11. Se agregan notas en proyecto, tarea o subtarea
 12. El Dashboard refleja el avance acumulado
@@ -214,7 +213,7 @@ La interfaz debe sentirse como una herramienta:
 | `tareas` | Tareas vinculadas a proyectos |
 | `subtareas` | Subtareas vinculadas a tareas |
 | `notas` | Notas por scope (proyecto, tarea, subtarea, personal) |
-| `notifications` | Notificaciones internas y WhatsApp |
+| `notifications` | Notificaciones internas in-app |
 | `audit_logs` | Registro de acciones del sistema |
 
 ### Estados de proyectos y tareas
@@ -229,12 +228,11 @@ baja | media | alta | critica
 
 ---
 
-## 7. Integracion WhatsApp
+## 7. Notificaciones In-App
 
-**Modo actual:** Simulado (mock)
-**Modo real:** Estructura preparada para Twilio o Meta WhatsApp Cloud API
+**Canal:** Notificaciones internas en la aplicacion.
 
-**Eventos que generan alerta:**
+**Eventos que generan notificacion:**
 - Asignacion de tarea a usuario
 - Cambio de estado de tarea
 - Asignacion de proyecto a usuario
@@ -266,7 +264,7 @@ baja | media | alta | critica
 - [x] Gestion de subtareas (crear, editar, cambiar estado, eliminar)
 - [x] Notas por nivel (proyecto, tarea, subtarea, personal)
 - [x] Notificaciones in-app (no leidas, marcar como leidas)
-- [x] WhatsApp mock funcional con log
+- [x] Notificaciones in-app funcionales con deduplicacion
 - [x] Audit log de todas las acciones
 - [x] CSRF en todos los formularios (incluido logout)
 - [x] Rate limiting en login (5 intentos / 15 minutos por IP)
@@ -284,7 +282,6 @@ baja | media | alta | critica
 - [ ] Vista detalle de tarea con subtareas inline (estructura existe, vista no es completa)
 - [ ] Perfil/configuracion del usuario (no existe pagina dedicada)
 - [ ] Verificacion o validacion por telefono (campo existe, verificacion no implementada)
-- [ ] Notificaciones WhatsApp reales (mock funcional, integracion real comentada)
 
 ### No implementado
 
@@ -319,7 +316,10 @@ taskorbit-php/
 │   ├── Controllers/            # 8 controladores (Auth, Dashboard, Proyectos...)
 │   ├── Models/                 # 6 modelos (Usuario, Proyecto, Tarea...)
 │   ├── Services/
-│   │   └── WhatsAppService.php # Integracion WhatsApp (mock/real)
+│   │   ├── NotificacionService.php # Despacho de notificaciones in-app
+│   │   ├── NotificacionTemplates.php # Plantillas de mensajes
+│   │   ├── EstadoService.php   # Propagacion de estados
+│   │   └── SemaforoService.php # Calculo de semaforo de riesgo
 │   ├── Helpers/
 │   │   ├── CSRF.php            # Proteccion CSRF
 │   │   ├── Validator.php       # Validaciones de entrada
@@ -362,7 +362,7 @@ taskorbit-php/
 - La asignacion de tareas hereda el usuario asignado del proyecto si no se especifica uno
 - El rol GOD tiene acceso a todos los proyectos; ADMIN ve los que creo; USER ve los asignados
 - Los soft-deletes en cascada preservan la integridad historica
-- El servicio WhatsApp esta preparado para produccion: solo requiere credenciales reales en `.env`
+- Las notificaciones in-app son el unico canal de alertas; no hay canales externos configurados
 - Todos los formularios tienen proteccion CSRF
 - La base de datos usa vistas (`vw_login`, `vw_proyectos`, `vw_tareas`, etc.) para simplificar queries
 

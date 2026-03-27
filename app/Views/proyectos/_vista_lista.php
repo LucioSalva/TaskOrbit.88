@@ -86,19 +86,20 @@ $proyectosFiltrados = $proyectos ?? [];
                   <?php if ($proyecto['fecha_fin'] && $proyecto['estado'] !== 'terminada'): ?>
                     <?php $dias = \App\Helpers\DateHelper::daysRemaining($proyecto['fecha_fin']); ?>
                     <?php if ($dias < 0): ?>
-                      <span class="badge bg-danger ms-1" style="font-size:.65rem">Vencido <?php echo abs($dias); ?>d</span>
+                      <span class="badge bg-danger ms-1 fs-2xs">Vencido <?php echo abs($dias); ?>d</span>
                     <?php elseif ($dias <= 3): ?>
-                      <span class="badge bg-warning text-dark ms-1" style="font-size:.65rem">Vence en <?php echo $dias; ?>d</span>
+                      <span class="badge bg-warning text-dark ms-1 fs-2xs">Vence en <?php echo $dias; ?>d</span>
                     <?php endif; ?>
                   <?php endif; ?>
               </div>
             <?php endif; ?>
 
-            <!-- Quick estado change -->
+            <!-- Quick estado change (ADMIN/GOD only) -->
+            <?php if (in_array($role, ['ADMIN', 'GOD'])): ?>
             <div class="estado-btn-group btn-group btn-group-sm w-100 mb-2">
               <?php foreach(['por_hacer' => 'PH', 'haciendo' => 'H', 'terminada' => 'T'] as $est => $lbl): ?>
               <form method="POST" action="<?php echo $appUrl; ?>/proyectos/<?php echo $e($proyecto['id']); ?>/estado"
-                    class="d-inline flex-fill" onsubmit="return changeEstado(this)">
+                    class="d-inline flex-fill" data-change-estado>
                 <?php echo \App\Helpers\CSRF::tokenField(); ?>
                 <input type="hidden" name="estado" value="<?php echo $e($est); ?>">
                 <button type="submit"
@@ -110,25 +111,32 @@ $proyectosFiltrados = $proyectos ?? [];
               </form>
               <?php endforeach; ?>
             </div>
+            <?php endif; ?>
 
             <div class="d-flex gap-1 mb-2 flex-wrap">
               <?php if (in_array($role, ['ADMIN','GOD'])): ?>
               <button type="button" class="btn btn-xs btn-outline-primary"
                 title="Edicion rapida"
-                onclick="openQuickEdit('proyecto', <?php echo $e($proyecto['id']); ?>, {
-                  nombre:<?php echo json_encode($proyecto['nombre']); ?>,
-                  descripcion:<?php echo json_encode($proyecto['descripcion']??''); ?>,
-                  fechaFin:<?php echo json_encode($proyecto['fecha_fin']??''); ?>,
-                  prioridad:<?php echo json_encode($proyecto['prioridad']??'media'); ?>
-                })"><i class="bi bi-pencil-square me-1"></i><span class="d-none d-sm-inline">Editar</span></button>
+                data-action="quick-edit"
+                data-entity-type="proyecto"
+                data-entity-id="<?php echo (int)$proyecto['id']; ?>"
+                data-entity-data="<?php echo htmlspecialchars(json_encode(['nombre'=>$proyecto['nombre'],'descripcion'=>$proyecto['descripcion']??'','fechaFin'=>$proyecto['fecha_fin']??'','prioridad'=>$proyecto['prioridad']??'media']), ENT_QUOTES); ?>">
+                <i class="bi bi-pencil-square me-1"></i><span class="d-none d-sm-inline">Editar</span></button>
               <button type="button" class="btn btn-xs btn-outline-secondary"
                 title="Reasignar"
-                onclick="openQuickAssign('proyecto', <?php echo $e($proyecto['id']); ?>, <?php echo (int)($proyecto['usuario_asignado_id']??0); ?>, <?php echo json_encode($proyecto['nombre']); ?>)">
+                data-action="quick-assign"
+                data-entity-type="proyecto"
+                data-entity-id="<?php echo (int)$proyecto['id']; ?>"
+                data-assignee-id="<?php echo (int)($proyecto['usuario_asignado_id']??0); ?>"
+                data-entity-name="<?php echo htmlspecialchars($proyecto['nombre'], ENT_QUOTES); ?>">
                 <i class="bi bi-person-check me-1"></i><span class="d-none d-sm-inline">Asignar</span></button>
               <?php endif; ?>
               <button type="button" class="btn btn-xs btn-outline-info"
                 title="Nota rapida"
-                onclick="openQuickNota('proyecto', <?php echo $e($proyecto['id']); ?>, <?php echo json_encode($proyecto['nombre']); ?>)">
+                data-action="quick-nota"
+                data-entity-type="proyecto"
+                data-entity-id="<?php echo (int)$proyecto['id']; ?>"
+                data-entity-name="<?php echo htmlspecialchars($proyecto['nombre'], ENT_QUOTES); ?>">
                 <i class="bi bi-sticky me-1"></i><span class="d-none d-sm-inline">Nota</span></button>
             </div>
             <div class="d-flex gap-2 mt-auto">
