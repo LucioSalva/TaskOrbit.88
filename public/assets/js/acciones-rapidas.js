@@ -152,7 +152,7 @@ function _hideSpinner(spinnerId, btnId) {
 // ================================================================
 
 /**
- * @param {string} entityType  'tarea' | 'proyecto'
+ * @param {string} entityType  'tarea' | 'proyecto' | 'subtarea'
  * @param {number} entityId
  * @param {number|null} currentAssigneeId
  * @param {string} entityNombre
@@ -177,13 +177,30 @@ function openQuickAssign(entityType, entityId, currentAssigneeId, entityNombre) 
   _getAssignModal().show();
 }
 
+/**
+ * Build the correct assignment URL for the given entity type.
+ * - proyecto -> POST /proyectos/{id}/editar  (handled by ProyectosController@update)
+ * - tarea    -> POST /tareas/{id}/editar     (handled by TareasController@update)
+ * - subtarea -> POST /subtareas/{id}/asignar (handled by SubtareasController@assign)
+ */
+function _buildAssignUrl(appUrl, entityType, entityId) {
+  if (entityType === 'subtarea') {
+    return appUrl + '/subtareas/' + encodeURIComponent(entityId) + '/asignar';
+  }
+  if (entityType === 'tarea') {
+    return appUrl + '/tareas/' + encodeURIComponent(entityId) + '/editar';
+  }
+  // Default: proyecto
+  return appUrl + '/proyectos/' + encodeURIComponent(entityId) + '/editar';
+}
+
 function submitQuickAssign() {
   var entityType = document.getElementById('qa-assign-entity-type').value;
   var entityId   = document.getElementById('qa-assign-entity-id').value;
   var usuarioId  = document.getElementById('qa-assign-select').value;
   var appUrl     = document.body.dataset.appUrl || '';
 
-  var url = appUrl + '/' + (entityType === 'tarea' ? 'tareas' : 'proyectos') + '/' + entityId + '/editar';
+  var url = _buildAssignUrl(appUrl, entityType, entityId);
 
   _showSpinner('qa-assign-spinner', 'qa-assign-submit');
 
@@ -203,15 +220,16 @@ function submitQuickAssign() {
       showActionFeedback('Error de sesión. Intenta de nuevo.', 'error');
       return Promise.reject('csrf_expired');
     }
-    return r.json();
+    return r.json().catch(function() { return { ok: false, message: 'Respuesta inválida del servidor.' }; });
   })
   .then(function(res) {
+    if (!res) return;
     refreshCsrfToken(res);
     _hideSpinner('qa-assign-spinner', 'qa-assign-submit');
     if (res.ok) {
       _getAssignModal().hide();
-      var data = res.tarea || res.proyecto || {};
-      updateCardUI(entityType, parseInt(entityId), {
+      var data = res.subtarea || res.tarea || res.proyecto || {};
+      updateCardUI(entityType, parseInt(entityId, 10), {
         usuario_asignado_id:     data.usuario_asignado_id,
         usuario_asignado_nombre: data.usuario_asignado_nombre
       });
@@ -414,6 +432,7 @@ function submitQuickSubtarea(formEl) {
   var nombre  = formEl.querySelector('[name="nombre"]');
   var fechaFin = formEl.querySelector('[name="fecha_fin"]');
   var prioridad = formEl.querySelector('[name="prioridad"]');
+  var descripcion = formEl.querySelector('[name="descripcion"]');
 
   if (!nombre || !nombre.value.trim()) {
     showActionFeedback('El nombre de la subtarea es requerido', 'warning');
@@ -427,7 +446,8 @@ function submitQuickSubtarea(formEl) {
   var body = 'csrf_token=' + encodeURIComponent(getCsrfToken()) +
              '&nombre='     + encodeURIComponent(nombre.value.trim()) +
              '&prioridad='  + encodeURIComponent((prioridad ? prioridad.value : 'media')) +
-             '&fecha_fin='  + encodeURIComponent((fechaFin ? fechaFin.value : ''));
+             '&fecha_fin='  + encodeURIComponent((fechaFin ? fechaFin.value : '')) +
+             '&descripcion=' + encodeURIComponent((descripcion ? descripcion.value.trim() : ''));
 
   fetch(appUrl + '/tareas/' + tareaId + '/subtareas', {
     method: 'POST',

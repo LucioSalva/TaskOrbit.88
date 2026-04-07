@@ -46,19 +46,19 @@ function isActive(string $prefix, string $current): string {
 
   <nav>
     <a href="<?php echo $appUrl; ?>/dashboard" class="nav-link <?php echo isActive('/dashboard', $currentUri); ?>">
-      <i class="bi bi-speedometer2"></i> Dashboard
+      <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
     </a>
     <a href="<?php echo $appUrl; ?>/proyectos" class="nav-link <?php echo isActive('/proyectos', $currentUri); ?>">
-      <i class="bi bi-kanban"></i> Proyectos
+      <i class="bi bi-kanban"></i> <span>Proyectos</span>
     </a>
     <a href="<?php echo $appUrl; ?>/notas" class="nav-link <?php echo isActive('/notas', $currentUri); ?>">
-      <i class="bi bi-sticky"></i> Notas
+      <i class="bi bi-sticky"></i> <span>Notas</span>
     </a>
     <?php if ($userRole === 'GOD'): ?>
     <hr class="my-2 sidebar-sep">
     <div class="sidebar-section-lbl px-3 py-1">Administración</div>
     <a href="<?php echo $appUrl; ?>/admin/usuarios" class="nav-link <?php echo isActive('/admin/usuarios', $currentUri); ?>">
-      <i class="bi bi-people"></i> Usuarios
+      <i class="bi bi-people"></i> <span>Usuarios</span>
     </a>
     <?php endif; ?>
   </nav>

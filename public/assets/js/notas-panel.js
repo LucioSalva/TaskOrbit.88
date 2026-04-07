@@ -25,18 +25,18 @@
     var pinBtn = nota.can_pin
       ? '<form method="POST" action="' + appUrl + '/notas/' + nota.id + '/pin" class="nota-pin-form d-inline" data-nota-id="' + nota.id + '">' +
         '<input type="hidden" name="csrf_token" value="' + escapeHtml(getCsrfToken()) + '">' +
-        '<button type="submit" class="btn btn-link btn-sm p-0 ' + (isPinned ? 'text-warning' : 'text-muted') + '" title="' + (isPinned ? 'Desfijar' : 'Fijar') + '" style="font-size:0.75rem">' +
+        '<button type="submit" class="btn btn-link btn-sm p-0 nota-action-btn ' + (isPinned ? 'text-warning' : 'text-muted') + '" title="' + (isPinned ? 'Desfijar' : 'Fijar') + '">' +
         '<i class="bi ' + (isPinned ? 'bi-pin-fill' : 'bi-pin') + '"></i></button></form>'
       : '';
 
     var editBtn = nota.can_edit && !esAuto
-      ? '<button type="button" class="btn btn-link btn-sm p-0 text-muted nota-edit-btn" data-nota-id="' + nota.id + '" data-titulo="' + escapeHtml(nota.titulo || '') + '" data-contenido="' + escapeHtml(nota.contenido || '') + '" title="Editar" style="font-size:0.75rem"><i class="bi bi-pencil"></i></button>'
+      ? '<button type="button" class="btn btn-link btn-sm p-0 text-muted nota-action-btn nota-edit-btn" data-nota-id="' + nota.id + '" data-titulo="' + escapeHtml(nota.titulo || '') + '" data-contenido="' + escapeHtml(nota.contenido || '') + '" title="Editar"><i class="bi bi-pencil"></i></button>'
       : '';
 
     var delBtn = nota.can_delete
       ? '<form method="POST" action="' + appUrl + '/notas/' + nota.id + '/eliminar" class="nota-delete-form d-inline" data-nota-id="' + nota.id + '">' +
         '<input type="hidden" name="csrf_token" value="' + escapeHtml(getCsrfToken()) + '">' +
-        '<button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Eliminar" style="font-size:0.75rem"><i class="bi bi-trash"></i></button></form>'
+        '<button type="submit" class="btn btn-link btn-sm p-0 text-danger nota-action-btn" title="Eliminar"><i class="bi bi-trash"></i></button></form>'
       : '';
 
     var editForm = nota.can_edit && !esAuto
@@ -45,8 +45,8 @@
         '<input type="hidden" name="csrf_token" value="' + escapeHtml(getCsrfToken()) + '">' +
         '<input type="text" name="titulo" class="form-control form-control-sm mb-1" placeholder="Título (opcional)" maxlength="200" value="' + escapeHtml(nota.titulo || '') + '">' +
         '<textarea name="contenido" class="form-control form-control-sm mb-1" rows="2" required>' + escapeHtml(nota.contenido || '') + '</textarea>' +
-        '<div class="d-flex gap-2"><button type="submit" class="btn btn-primary btn-sm" style="font-size:0.75rem">Guardar</button>' +
-        '<button type="button" class="btn btn-outline-secondary btn-sm nota-cancel-edit" data-nota-id="' + nota.id + '" style="font-size:0.75rem">Cancelar</button></div>' +
+        '<div class="d-flex gap-2"><button type="submit" class="btn btn-primary btn-sm nota-action-btn">Guardar</button>' +
+        '<button type="button" class="btn btn-outline-secondary btn-sm nota-action-btn nota-cancel-edit" data-nota-id="' + nota.id + '">Cancelar</button></div>' +
         '</form></div>'
       : '';
 
@@ -54,16 +54,16 @@
 
     return '<div class="nota-item rounded border-start border-2 ' + borderClass + ' ps-2 py-2 mb-2 fade-in" id="nota-item-' + nota.id + '" data-nota-id="' + nota.id + '">' +
       '<div class="d-flex align-items-start justify-content-between gap-1 mb-1">' +
-      '<div class="flex-fill" style="min-width:0">' +
+      '<div class="flex-fill nota-flex-fill">' +
       (isPinned ? '<i class="bi bi-pin-fill text-warning me-1"></i>' : '') +
-      '<span class="badge ' + (tipoClass[nota.tipo] || 'bg-primary') + ' badge-sm" style="font-size:0.65rem">' + escapeHtml(tipoLabel[nota.tipo] || 'Actividad') + '</span>' +
+      '<span class="badge ' + (tipoClass[nota.tipo] || 'bg-primary') + ' badge-sm nota-badge-tipo">' + escapeHtml(tipoLabel[nota.tipo] || 'Actividad') + '</span>' +
       (nota.titulo ? '<strong class="small ms-1 nota-titulo-display">' + escapeHtml(nota.titulo) + '</strong>' : '') +
       '</div>' +
       '<div class="d-flex gap-1 flex-shrink-0">' + pinBtn + editBtn + delBtn + '</div>' +
       '</div>' +
       '<div class="nota-contenido-display small">' + escapeHtml(nota.contenido || '').replace(/\n/g, '<br>') + '</div>' +
       editForm +
-      '<div class="text-muted mt-1" style="font-size:0.7rem"><i class="bi bi-person me-1"></i>' + escapeHtml(nota.autor || 'Sistema') + ' &bull; ' + escapeHtml(nota.created_at || '') + '</div>' +
+      '<div class="text-muted mt-1 nota-meta"><i class="bi bi-person me-1"></i>' + escapeHtml(nota.autor || nota.autor_nombre || 'Sistema') + ' &bull; ' + escapeHtml(nota.created_at || '') + '</div>' +
       '</div>';
   }
 
@@ -276,7 +276,7 @@
 
             // Show empty message if no notes remain
             if (listEl && listEl.querySelectorAll('.nota-item').length === 0) {
-              listEl.innerHTML = '<div class="text-center py-3 text-muted small notas-empty-msg"><i class="bi bi-journal d-block mb-1" style="font-size:1.4rem"></i>Sin notas registradas.</div>';
+              listEl.innerHTML = '<div class="text-center py-3 text-muted small notas-empty-msg"><i class="bi bi-journal d-block mb-1 notas-empty-icon"></i>Sin notas registradas.</div>';
             }
 
             if (typeof showActionFeedback === 'function') showActionFeedback('Nota eliminada', 'success');
@@ -366,7 +366,7 @@
       if (countEl) countEl.textContent = res.notas.length;
 
       if (res.notas.length === 0) {
-        listEl.innerHTML = '<div class="text-center py-3 text-muted small notas-empty-msg"><i class="bi bi-journal d-block mb-1" style="font-size:1.4rem"></i>Sin notas registradas.</div>';
+        listEl.innerHTML = '<div class="text-center py-3 text-muted small notas-empty-msg"><i class="bi bi-journal d-block mb-1 notas-empty-icon"></i>Sin notas registradas.</div>';
         return;
       }
 

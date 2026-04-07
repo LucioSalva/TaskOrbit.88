@@ -59,7 +59,10 @@ class Controller
     {
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
-        if (is_array($data)) {
+        // Solo inyectar _csrf en respuestas a peticiones que mutan estado.
+        // GET (lectura) NO debe filtrar el token a XHR de terceros / extensiones.
+        $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+        if (is_array($data) && in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
             $data['_csrf'] = \App\Helpers\CSRF::getToken();
         }
         echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

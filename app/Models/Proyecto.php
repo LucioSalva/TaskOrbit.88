@@ -147,13 +147,18 @@ class Proyecto
             $intFields     = ['usuario_asignado_id'];
             $allowed       = array_merge($stringFields, $intFields);
             foreach ($allowed as $field) {
-                if (array_key_exists($field, $data)) {
-                    $fields[] = "$field = ?";
-                    if (in_array($field, $intFields, true)) {
-                        $params[] = isset($data[$field]) && $data[$field] !== '' ? (int)$data[$field] : null;
-                    } else {
-                        $params[] = isset($data[$field]) ? (trim((string)$data[$field]) === '' ? null : $data[$field]) : null;
+                if (!array_key_exists($field, $data)) continue;
+
+                if (in_array($field, $intFields, true)) {
+                    // "Sin cambiar" llega vacío → conservar el valor actual (no tocarlo).
+                    if ($data[$field] === '' || $data[$field] === null) {
+                        continue;
                     }
+                    $fields[] = "$field = ?";
+                    $params[] = (int)$data[$field];
+                } else {
+                    $fields[] = "$field = ?";
+                    $params[] = isset($data[$field]) ? (trim((string)$data[$field]) === '' ? null : $data[$field]) : null;
                 }
             }
 

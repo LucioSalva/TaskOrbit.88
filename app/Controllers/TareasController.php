@@ -152,11 +152,15 @@ class TareasController extends Controller
             $tarea['semaforo'] = 'neutral';
         }
 
+        // Users assignable to subtareas (quick-assign modal on this view)
+        $usuarios = ($user['rol'] !== 'USER') ? Usuario::getAssignableUsers() : [];
+
         $this->view('tareas/show', [
             'flash'    => $this->getFlash(),
             'tarea'    => $tarea,
             'proyecto' => $proyecto,
             'notas'    => $notas,
+            'usuarios' => $usuarios,
         ]);
     }
 
@@ -377,6 +381,15 @@ class TareasController extends Controller
             }
             if (isset($data['estado']) && $data['estado'] !== '' && !Validator::isValidEstado($data['estado'])) {
                 $errors[] = 'Estado inválido.';
+            }
+            // Validar reasignación: usuario debe existir y no ser GOD
+            if (isset($data['usuario_asignado_id']) && $data['usuario_asignado_id'] !== '') {
+                $assignedRole = Usuario::getRoleById((int)$data['usuario_asignado_id']);
+                if (!$assignedRole) {
+                    $errors[] = 'El usuario asignado no existe.';
+                } elseif ($assignedRole === 'GOD') {
+                    $errors[] = 'No se puede asignar tareas a un usuario GOD.';
+                }
             }
             if (!empty($errors)) {
                 if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {

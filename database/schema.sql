@@ -96,20 +96,21 @@ COMMENT ON TABLE tareas IS 'Tareas vinculadas a proyectos (soft-delete con delet
 
 -- subtareas
 CREATE TABLE IF NOT EXISTS subtareas (
-  id          SERIAL         PRIMARY KEY,
-  tarea_id    INT            NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
-  nombre      VARCHAR(200)   NOT NULL,
-  descripcion TEXT           DEFAULT NULL,
-  prioridad   prioridad_tipo NOT NULL DEFAULT 'media',
-  estado      estado_tipo    NOT NULL DEFAULT 'por_hacer',
-  fecha_inicio DATE          DEFAULT NULL,
-  fecha_fin    DATE          DEFAULT NULL,
-  created_by  INT            NOT NULL REFERENCES usuarios(id) ON DELETE RESTRICT,
-  deleted_at  TIMESTAMPTZ    DEFAULT NULL,
-  created_at  TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+  id                  SERIAL         PRIMARY KEY,
+  tarea_id            INT            NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
+  nombre              VARCHAR(200)   NOT NULL,
+  descripcion         TEXT           DEFAULT NULL,
+  prioridad           prioridad_tipo NOT NULL DEFAULT 'media',
+  estado              estado_tipo    NOT NULL DEFAULT 'por_hacer',
+  fecha_inicio        DATE           DEFAULT NULL,
+  fecha_fin           DATE           DEFAULT NULL,
+  usuario_asignado_id INT            DEFAULT NULL REFERENCES usuarios(id) ON DELETE SET NULL,
+  created_by          INT            NOT NULL     REFERENCES usuarios(id) ON DELETE RESTRICT,
+  deleted_at          TIMESTAMPTZ    DEFAULT NULL,
+  created_at          TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
-COMMENT ON TABLE subtareas IS 'Subtareas vinculadas a tareas (soft-delete con deleted_at)';
+COMMENT ON TABLE subtareas IS 'Subtareas vinculadas a tareas (soft-delete con deleted_at). usuario_asignado_id es OPCIONAL: si NULL, hereda responsable de la tarea/proyecto.';
 
 -- notas
 CREATE TABLE IF NOT EXISTS notas (
@@ -189,8 +190,9 @@ CREATE INDEX IF NOT EXISTS idx_tareas_estado            ON tareas(estado)       
 CREATE INDEX IF NOT EXISTS idx_tareas_usuario           ON tareas(usuario_asignado_id)   WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_tareas_deleted           ON tareas(deleted_at);
 
-CREATE INDEX IF NOT EXISTS idx_subtareas_tarea          ON subtareas(tarea_id)           WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_subtareas_estado         ON subtareas(estado)             WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_subtareas_tarea          ON subtareas(tarea_id)              WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_subtareas_estado         ON subtareas(estado)                WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_subtareas_usuario        ON subtareas(usuario_asignado_id)   WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_subtareas_deleted        ON subtareas(deleted_at);
 
 CREATE INDEX IF NOT EXISTS idx_notas_scope_ref         ON notas(scope, referencia_id)   WHERE deleted_at IS NULL;
@@ -315,6 +317,9 @@ WHERE t.deleted_at IS NULL
 COMMENT ON VIEW vw_tareas IS 'Tareas activas con usuario efectivo resuelto';
 
 -- vw_subtareas: usada por SubtareasController y listados de tareas
+-- Nota: en bases con drift histórica este view también incluye `completada`
+-- y `estimacion_minutos` (ver migration 012). El layout que se mantiene aquí
+-- es el de instalaciones limpias.
 CREATE OR REPLACE VIEW vw_subtareas AS
 SELECT
   s.id,
@@ -325,13 +330,16 @@ SELECT
   s.estado::TEXT    AS estado,
   s.fecha_inicio,
   s.fecha_fin,
+  s.usuario_asignado_id,
+  u.nombre_completo AS usuario_asignado_nombre,
   s.created_by,
   s.created_at,
   s.updated_at
 FROM subtareas s
+LEFT JOIN usuarios u ON u.id = s.usuario_asignado_id
 WHERE s.deleted_at IS NULL;
 
-COMMENT ON VIEW vw_subtareas IS 'Subtareas activas (sin eliminadas)';
+COMMENT ON VIEW vw_subtareas IS 'Subtareas activas con responsable explícito (NULL = hereda de la tarea/proyecto)';
 
 -- ============================================================
 -- TABLA: login_attempts (rate limiting basado en DB)

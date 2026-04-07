@@ -166,10 +166,8 @@ class EstadoService
             return null;
         }
 
-        try {
-            $enRiesgo = self::calcularRiesgo($actual['fecha_fin'], $nuevoEstado);
-            $db->execute('UPDATE tareas SET en_riesgo = ? WHERE id = ? AND deleted_at IS NULL', [$enRiesgo, $tareaId]);
-        } catch (\Throwable $e) { /* columna en_riesgo no existe aún */ }
+        $enRiesgo = self::calcularRiesgo($actual['fecha_fin'], $nuevoEstado);
+        $db->execute('UPDATE tareas SET en_riesgo = ? WHERE id = ? AND deleted_at IS NULL', [$enRiesgo, $tareaId]);
 
         if ($actual['estado'] !== $nuevoEstado) {
             $db->execute(
@@ -207,10 +205,8 @@ class EstadoService
             return null;
         }
 
-        try {
-            $enRiesgo = self::calcularRiesgo($actual['fecha_fin'], $nuevoEstado);
-            $db->execute('UPDATE proyectos SET en_riesgo = ? WHERE id = ? AND deleted_at IS NULL', [$enRiesgo, $proyectoId]);
-        } catch (\Throwable $e) { /* columna en_riesgo no existe aún */ }
+        $enRiesgo = self::calcularRiesgo($actual['fecha_fin'], $nuevoEstado);
+        $db->execute('UPDATE proyectos SET en_riesgo = ? WHERE id = ? AND deleted_at IS NULL', [$enRiesgo, $proyectoId]);
 
         if ($actual['estado'] !== $nuevoEstado) {
             $db->execute(
@@ -240,10 +236,8 @@ class EstadoService
         );
         if (!$row) return;
 
-        try {
-            $enRiesgo = self::calcularRiesgo($row['fecha_fin'], $row['estado']);
-            $db->execute('UPDATE tareas SET en_riesgo = ? WHERE id = ?', [$enRiesgo, $tareaId]);
-        } catch (\Throwable $e) { /* columna en_riesgo no existe aún */ }
+        $enRiesgo = self::calcularRiesgo($row['fecha_fin'], $row['estado']);
+        $db->execute('UPDATE tareas SET en_riesgo = ? WHERE id = ?', [$enRiesgo, $tareaId]);
     }
 
     /**
@@ -258,10 +252,8 @@ class EstadoService
         );
         if (!$row) return;
 
-        try {
-            $enRiesgo = self::calcularRiesgo($row['fecha_fin'], $row['estado']);
-            $db->execute('UPDATE proyectos SET en_riesgo = ? WHERE id = ?', [$enRiesgo, $proyectoId]);
-        } catch (\Throwable $e) { /* columna en_riesgo no existe aún */ }
+        $enRiesgo = self::calcularRiesgo($row['fecha_fin'], $row['estado']);
+        $db->execute('UPDATE proyectos SET en_riesgo = ? WHERE id = ?', [$enRiesgo, $proyectoId]);
     }
 
     // =========================================================
@@ -322,10 +314,8 @@ class EstadoService
         }
 
         // Actualizar en_riesgo de la propia tarea según su nuevo estado
-        try {
-            $enRiesgo = self::calcularRiesgo($tarea['fecha_fin'], $tarea['estado']);
-            $db->execute('UPDATE tareas SET en_riesgo = ? WHERE id = ?', [$enRiesgo, $tareaId]);
-        } catch (\Throwable $e) { /* columna en_riesgo no existe aún */ }
+        $enRiesgo = self::calcularRiesgo($tarea['fecha_fin'], $tarea['estado']);
+        $db->execute('UPDATE tareas SET en_riesgo = ? WHERE id = ?', [$enRiesgo, $tareaId]);
 
         $proyectoId     = (int)$tarea['proyecto_id'];
         $proyectoEstado = self::recalcularProyecto($proyectoId, $actorId);

@@ -79,7 +79,16 @@ class View
     public static function asset(string $path): string
     {
         $base = rtrim(getenv('APP_URL') ?: '', '/');
-        return $base . '/assets/' . ltrim($path, '/');
+        $relative = ltrim($path, '/');
+        $url = $base . '/assets/' . $relative;
+
+        // Cache busting: append ?v=<filemtime> so edits are picked up without hard refresh.
+        $file = BASE_PATH . '/public/assets/' . $relative;
+        if (is_file($file)) {
+            $url .= '?v=' . filemtime($file);
+        }
+
+        return $url;
     }
 
     public static function url(string $path = ''): string

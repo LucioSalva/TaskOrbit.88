@@ -47,9 +47,26 @@ class Subtarea
         $db = Database::getInstance();
         return $db->fetchAll(
             'SELECT id, tarea_id, nombre, descripcion, prioridad, estado,
-                    fecha_inicio, fecha_fin, created_by, created_at, updated_at
+                    fecha_inicio, fecha_fin, usuario_asignado_id, usuario_asignado_nombre,
+                    created_by, created_at, updated_at
              FROM vw_subtareas WHERE tarea_id = ? ORDER BY created_at ASC',
             [$tareaId]
+        );
+    }
+
+    /**
+     * Lightweight subtarea rows for multiple tarea IDs.
+     * Used by NotasController para dropdown de scope=subtarea.
+     */
+    public static function getListByTareaIds(array $tareaIds): array
+    {
+        if (empty($tareaIds)) return [];
+        $db = Database::getInstance();
+        $placeholders = implode(',', array_fill(0, count($tareaIds), '?'));
+        return $db->fetchAll(
+            "SELECT id, nombre, tarea_id, usuario_asignado_id, usuario_asignado_nombre
+             FROM vw_subtareas WHERE tarea_id IN ($placeholders) ORDER BY nombre",
+            $tareaIds
         );
     }
 
@@ -58,7 +75,8 @@ class Subtarea
         $db = Database::getInstance();
         return $db->fetchOne(
             'SELECT id, tarea_id, nombre, descripcion, prioridad, estado,
-                    fecha_inicio, fecha_fin, created_by, created_at, updated_at
+                    fecha_inicio, fecha_fin, usuario_asignado_id, usuario_asignado_nombre,
+                    created_by, created_at, updated_at
              FROM vw_subtareas WHERE id = ?',
             [$id]
         );
@@ -68,8 +86,10 @@ class Subtarea
     {
         $db = Database::getInstance();
         $stmt = $db->query(
-            'INSERT INTO subtareas (tarea_id, nombre, descripcion, prioridad, estado, fecha_inicio, fecha_fin, created_by)
-             VALUES (?,?,?,?,?,?,?,?) RETURNING id',
+            'INSERT INTO subtareas
+                (tarea_id, nombre, descripcion, prioridad, estado,
+                 fecha_inicio, fecha_fin, usuario_asignado_id, created_by)
+             VALUES (?,?,?,?,?,?,?,?,?) RETURNING id',
             [
                 $data['tarea_id'],
                 $data['nombre'],
@@ -78,6 +98,9 @@ class Subtarea
                 $data['estado'] ?? 'por_hacer',
                 $data['fecha_inicio'] ?: null,
                 $data['fecha_fin'] ?: null,
+                isset($data['usuario_asignado_id']) && $data['usuario_asignado_id'] !== '' && (int)$data['usuario_asignado_id'] > 0
+                    ? (int)$data['usuario_asignado_id']
+                    : null,
                 $createdBy,
             ]
         );
@@ -92,9 +115,22 @@ class Subtarea
         $fields = [];
         $params = [];
 
-        $allowed = ['nombre', 'descripcion', 'prioridad', 'estado', 'fecha_inicio', 'fecha_fin'];
+        $stringFields = ['nombre', 'descripcion', 'prioridad', 'estado', 'fecha_inicio', 'fecha_fin'];
+        $intFields    = ['usuario_asignado_id'];
+        $allowed      = array_merge($stringFields, $intFields);
+
         foreach ($allowed as $field) {
-            if (array_key_exists($field, $data)) {
+            if (!array_key_exists($field, $data)) continue;
+
+            if (in_array($field, $intFields, true)) {
+                // Empty string / null / 0 → set to NULL (un-assign / inherit from parent)
+                if ($data[$field] === '' || $data[$field] === null || (int)$data[$field] === 0) {
+                    $fields[] = "$field = NULL";
+                } else {
+                    $fields[] = "$field = ?";
+                    $params[] = (int)$data[$field];
+                }
+            } else {
                 $fields[] = "$field = ?";
                 $params[]  = isset($data[$field]) ? (trim((string)$data[$field]) === '' ? null : $data[$field]) : null;
             }
@@ -112,6 +148,31 @@ class Subtarea
         return true;
     }
 
+    /**
+     * Reassign a subtarea to a user (or unassign by passing null/0).
+     * Returns the new effective row or null if subtarea does not exist.
+     */
+    public static function assign(int $id, ?int $usuarioAsignadoId, ?int $actorId = null): ?array
+    {
+        $db = Database::getInstance();
+
+        if ($usuarioAsignadoId !== null && $usuarioAsignadoId > 0) {
+            $db->execute(
+                'UPDATE subtareas SET usuario_asignado_id = ? WHERE id = ? AND deleted_at IS NULL',
+                [$usuarioAsignadoId, $id]
+            );
+        } else {
+            $db->execute(
+                'UPDATE subtareas SET usuario_asignado_id = NULL WHERE id = ? AND deleted_at IS NULL',
+                [$id]
+            );
+        }
+
+        self::logAudit($actorId, 'SUBTAREA_ASSIGN', $id, ['usuario_asignado_id' => $usuarioAsignadoId]);
+
+        return self::getById($id);
+    }
+
     public static function updateEstado(int $id, string $estado): bool
     {
         $db = Database::getInstance();
@@ -125,16 +186,27 @@ class Subtarea
     {
         $db  = Database::getInstance();
         $now = date('Y-m-d H:i:s');
-        $db->execute('UPDATE subtareas SET deleted_at = ? WHERE id = ?', [$now, $id]);
-        $db->execute(
-            "UPDATE notas SET deleted_at = ? WHERE scope = 'subtarea' AND referencia_id = ? AND deleted_at IS NULL",
-            [$now, $id]
-        );
-        // Propagate soft delete to evidencias for the subtarea
-        $db->execute(
-            "UPDATE evidencias SET deleted_at = ? WHERE tipo_entidad = 'subtarea' AND entidad_id = ? AND deleted_at IS NULL",
-            [$now, $id]
-        );
+
+        $db->beginTransaction();
+        try {
+            $db->execute(
+                'UPDATE subtareas SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL',
+                [$now, $id]
+            );
+            $db->execute(
+                "UPDATE notas SET deleted_at = ? WHERE scope = 'subtarea' AND referencia_id = ? AND deleted_at IS NULL",
+                [$now, $id]
+            );
+            $db->execute(
+                "UPDATE evidencias SET deleted_at = ? WHERE tipo_entidad = 'subtarea' AND entidad_id = ? AND deleted_at IS NULL",
+                [$now, $id]
+            );
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db->rollback();
+            throw $e;
+        }
+
         self::logAudit($actorId, 'SUBTAREA_DELETE', $id, []);
         return true;
     }

@@ -94,6 +94,19 @@ document.getElementById('tarea-filter-toggle')?.addEventListener('click', functi
   <?php endif; ?>
 </div>
 <?php else: ?>
+<?php
+// Batch prefetch de evidencias para evitar N+1 (1 query por tarea + 1 por subtarea)
+$_tareaIds    = [];
+$_subtareaIds = [];
+foreach ($filteredTareas as $_t) {
+    $_tareaIds[] = (int)$_t['id'];
+    foreach (($_t['subtareas'] ?? []) as $_s) {
+        $_subtareaIds[] = (int)$_s['id'];
+    }
+}
+$evidenciasByTareaId    = \App\Models\Evidencia::getByEntidades('tarea',    $_tareaIds);
+$evidenciasBySubtareaId = \App\Models\Evidencia::getByEntidades('subtarea', $_subtareaIds);
+?>
 <div class="accordion" id="tareasAccordion">
   <?php foreach ($filteredTareas as $idx => $tarea): ?>
   <div class="card mb-3" data-tarea-id="<?php echo $e($tarea['id']); ?>"
@@ -256,10 +269,16 @@ document.getElementById('tarea-filter-toggle')?.addEventListener('click', functi
         <div class="text-muted small py-2">Sin subtareas.</div>
         <?php else: ?>
         <?php foreach ($tarea['subtareas'] as $sub): ?>
-        <div class="subtarea-item <?php echo $sub['estado']==='terminada'?'terminada':''; ?>" data-subtarea-id="<?php echo $e($sub['id']); ?>">
+        <div class="subtarea-item <?php echo $sub['estado']==='terminada'?'terminada':''; ?>"
+             data-subtarea-id="<?php echo $e($sub['id']); ?>"
+             data-usuario-id="<?php echo (int)($sub['usuario_asignado_id'] ?? 0); ?>"
+             data-usuario-nombre="<?php echo $e($sub['usuario_asignado_nombre'] ?? ''); ?>">
           <div class="d-flex align-items-center gap-2">
             <div class="flex-fill">
               <span class="subtarea-nombre small fw-medium"><?php echo $e($sub['nombre']); ?></span>
+              <span class="text-muted fs-xs2 ms-1 assignee-name"><?php
+                echo !empty($sub['usuario_asignado_nombre']) ? '('.$e($sub['usuario_asignado_nombre']).')' : '';
+              ?></span>
               <?php if($sub['descripcion']??''): ?>
               <div class="text-muted fs-xs2"><?php echo $e($sub['descripcion']); ?></div>
               <?php endif; ?>
@@ -288,6 +307,15 @@ document.getElementById('tarea-filter-toggle')?.addEventListener('click', functi
               </div>
               <?php endif; ?>
               <?php if (in_array($role, ['ADMIN','GOD'])): ?>
+              <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1"
+                title="Reasignar subtarea"
+                data-action="quick-assign"
+                data-entity-type="subtarea"
+                data-entity-id="<?php echo (int)$sub['id']; ?>"
+                data-assignee-id="<?php echo (int)($sub['usuario_asignado_id'] ?? 0); ?>"
+                data-entity-name="<?php echo $e($sub['nombre']); ?>">
+                <i class="bi bi-person-check"></i>
+              </button>
               <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1"
                 title="Eliminar subtarea"
                 data-delete-url="<?php echo $appUrl; ?>/subtareas/<?php echo $e($sub['id']); ?>/eliminar"
@@ -309,7 +337,7 @@ document.getElementById('tarea-filter-toggle')?.addEventListener('click', functi
               <?php
               $evidTipo             = 'subtarea';
               $evidId               = (int)$sub['id'];
-              $evidencias           = \App\Models\Evidencia::getByEntidad('subtarea', (int)$sub['id']);
+              $evidencias           = $evidenciasBySubtareaId[(int)$sub['id']] ?? [];
               $evidCanUpload        = true;
               $evidCanDelete        = in_array($role, ['GOD', 'ADMIN']);
               $evidEntityTerminada  = ($sub['estado'] ?? '') === 'terminada';
@@ -332,7 +360,7 @@ document.getElementById('tarea-filter-toggle')?.addEventListener('click', functi
             <?php
             $evidTipo             = 'tarea';
             $evidId               = (int)$tarea['id'];
-            $evidencias           = \App\Models\Evidencia::getByEntidad('tarea', (int)$tarea['id']);
+            $evidencias           = $evidenciasByTareaId[(int)$tarea['id']] ?? [];
             $evidCanUpload        = true;
             $evidCanDelete        = in_array($role, ['GOD', 'ADMIN']);
             $evidEntityTerminada  = ($tarea['estado'] ?? '') === 'terminada';

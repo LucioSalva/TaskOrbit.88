@@ -44,9 +44,10 @@ $router->group($auth, function ($r) {
 
     // Subtareas
     $r->post('/tareas/{tareaId}/subtareas', 'SubtareasController@store');
-    $r->post('/subtareas/{id}/estado', 'SubtareasController@updateEstado');
-    $r->post('/subtareas/{id}/editar', 'SubtareasController@update');
-    $r->post('/subtareas/{id}/eliminar', 'SubtareasController@destroy');
+    $r->post('/subtareas/{id}/estado',    'SubtareasController@updateEstado');
+    $r->post('/subtareas/{id}/editar',    'SubtareasController@update');
+    $r->post('/subtareas/{id}/asignar',   'SubtareasController@assign');
+    $r->post('/subtareas/{id}/eliminar',  'SubtareasController@destroy');
 
     // Notas
     $r->get('/notas', 'NotasController@index');

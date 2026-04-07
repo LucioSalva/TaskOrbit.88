@@ -44,6 +44,59 @@ use App\Models\{Nota, Notificacion, Proyecto, Subtarea, Tarea};
 
 class NotasController extends Controller
 {
+    /**
+     * Verifica que el usuario tenga acceso REAL a la nota según su scope.
+     * - personal: requiere ownership directo (incluso para ADMIN/GOD).
+     * - proyecto/tarea/subtarea: requiere acceso al proyecto padre vía Proyecto::checkAccess.
+     *
+     * Llamar SIEMPRE antes de update/pin/destroy. Devuelve null si OK; si falla,
+     * responde directamente y aborta.
+     */
+    private function assertNotaAccess(array $nota, array $user): void
+    {
+        $scope = $nota['scope'] ?? '';
+        $userId = (int)$user['id'];
+        $role   = $user['rol'];
+
+        $deny = function (string $msg, int $code) {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+                $this->json(['ok' => false, 'message' => $msg], $code);
+            }
+            $this->flash('error', $msg);
+            $this->redirect('/notas');
+        };
+
+        if ($scope === 'personal') {
+            if ((int)($nota['user_id'] ?? 0) !== $userId) {
+                $deny('No tienes acceso a esta nota personal.', 403);
+            }
+            return;
+        }
+
+        $proyectoRef = null;
+
+        if ($scope === 'proyecto') {
+            $proyectoRef = Proyecto::getById((int)$nota['referencia_id']);
+        } elseif ($scope === 'tarea') {
+            $tareaRef = Tarea::getById((int)$nota['referencia_id']);
+            if ($tareaRef) {
+                $proyectoRef = Proyecto::getById((int)$tareaRef['proyecto_id']);
+            }
+        } elseif ($scope === 'subtarea') {
+            $subtareaRef = Subtarea::getById((int)$nota['referencia_id']);
+            if ($subtareaRef) {
+                $tareaRef = Tarea::getById((int)$subtareaRef['tarea_id']);
+                if ($tareaRef) {
+                    $proyectoRef = Proyecto::getById((int)$tareaRef['proyecto_id']);
+                }
+            }
+        }
+
+        if (!$proyectoRef || !Proyecto::checkAccess($proyectoRef, $userId, $role)) {
+            $deny('No tienes acceso a la entidad referenciada por esta nota.', 403);
+        }
+    }
+
     public function index(): void
     {
         $this->requireAuth();
@@ -53,13 +106,16 @@ class NotasController extends Controller
         $proyectos = Proyecto::getListForUser($user['id'], $user['rol']);
 
         $proyectoIds = array_column($proyectos, 'id');
-        $tareas = Tarea::getListByProyectoIds($proyectoIds);
+        $tareas      = Tarea::getListByProyectoIds($proyectoIds);
+        $tareaIds    = array_column($tareas, 'id');
+        $subtareas   = Subtarea::getListByTareaIds($tareaIds);
 
         $this->view('notas/index', [
             'flash'     => $this->getFlash(),
             'notas'     => $notas,
             'proyectos' => $proyectos,
             'tareas'    => $tareas,
+            'subtareas' => $subtareas,
         ]);
     }
 
@@ -75,6 +131,18 @@ class NotasController extends Controller
         $contenido   = trim($_POST['contenido'] ?? '');
 
         $validScopes = ['personal', 'proyecto', 'tarea', 'subtarea'];
+
+        // Coherencia obligatoria scope/referencia_id (refuerza CHECK de DB)
+        if ($scope === 'personal') {
+            $referenciaId = null;
+        } elseif (!$referenciaId) {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+                $this->json(['ok' => false, 'message' => 'Falta la entidad asociada a la nota.'], 422);
+            }
+            $this->flash('error', 'Falta la entidad asociada a la nota.');
+            $this->redirect('/notas');
+        }
+
         if (!in_array($scope, $validScopes, true)) {
             if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
                 $this->json(['ok' => false, 'message' => 'Tipo de nota inválido.'], 422);
@@ -208,6 +276,10 @@ class NotasController extends Controller
             $this->redirect('/notas');
         }
 
+        // 1) Acceso real al scope (rompe IDOR cross-proyecto para ADMIN/GOD).
+        $this->assertNotaAccess($nota, $user);
+
+        // 2) Reglas de negocio (ventana 24 h para owners; ADMIN/GOD permitidos).
         if (!Nota::canEdit($nota, $user['id'], $user['rol'])) {
             if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
                 $this->json(['ok' => false, 'message' => 'No puedes editar esta nota.'], 403);
@@ -250,10 +322,14 @@ class NotasController extends Controller
         $this->requireRole('ADMIN', 'GOD');
         CSRF::verifyRequest();
 
+        $user = $this->currentUser();
         $nota = Nota::getById((int)$id);
         if (!$nota) {
             $this->json(['ok' => false, 'message' => 'Nota no encontrada.'], 404);
         }
+
+        // ADMIN solo puede pinear notas en proyectos a los que tiene acceso
+        $this->assertNotaAccess($nota, $user);
 
         Nota::togglePin((int)$id);
         $updated = Nota::getById((int)$id);
@@ -345,9 +421,13 @@ class NotasController extends Controller
             $this->redirect('/notas');
         }
 
-        // Owner can always delete their own; ADMIN can delete any; GOD can delete any
-        $canDelete = (int)($nota['user_id'] ?? 0) === (int)$user['id']
-                  || in_array($user['rol'], ['ADMIN', 'GOD'], true);
+        // 1) Acceso real al scope (rompe IDOR cross-proyecto para ADMIN/GOD).
+        $this->assertNotaAccess($nota, $user);
+
+        // 2) Reglas de borrado: owner o ADMIN/GOD del scope ya validado.
+        $isOwner       = (int)($nota['user_id'] ?? 0) === (int)$user['id'];
+        $isPrivileged  = in_array($user['rol'], ['ADMIN', 'GOD'], true);
+        $canDelete     = $isOwner || $isPrivileged;
 
         if (!$canDelete) {
             if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
@@ -357,8 +437,7 @@ class NotasController extends Controller
             $this->redirect('/notas');
         }
 
-        $adminOverride = in_array($user['rol'], ['ADMIN', 'GOD'], true);
-        Nota::softDelete((int)$id, $user['id'], $adminOverride);
+        Nota::softDelete((int)$id, $user['id'], $isPrivileged);
 
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
             $this->json(['ok' => true]);

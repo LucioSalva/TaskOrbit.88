@@ -260,8 +260,10 @@ class AuthService
             $errorMessage = $message;
             include $viewPath;
         } else {
+            $appUrl = rtrim((string)(getenv('APP_URL') ?: ''), '/');
+            $dashboardUrl = htmlspecialchars($appUrl . '/dashboard', ENT_QUOTES, 'UTF-8');
             echo '<h1>403 — Acceso denegado</h1><p>' . htmlspecialchars($message) . '</p>';
-            echo '<a href="javascript:history.back()">Volver</a>';
+            echo '<a href="' . $dashboardUrl . '">Volver al dashboard</a>';
         }
         exit;
     }

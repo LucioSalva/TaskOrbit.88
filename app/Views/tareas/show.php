@@ -46,8 +46,28 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
         <p class="text-muted mt-2 mb-0"><?php echo $e($t['descripcion']); ?></p>
         <?php endif; ?>
       </div>
-      <?php if (in_array($role, ['ADMIN','GOD'])): ?>
-      <div class="d-flex gap-2">
+      <div class="d-flex flex-wrap gap-2">
+        <?php
+        $canChangeTareaEstado = in_array($role, ['ADMIN', 'GOD'], true)
+            || (int)($t['usuario_asignado_id'] ?? 0) === (int)($user['id'] ?? 0);
+        ?>
+        <?php if ($canChangeTareaEstado): ?>
+        <div class="estado-btn-group btn-group btn-group-sm" role="group" aria-label="Cambiar estado de la tarea">
+          <?php foreach (['por_hacer'=>'Por hacer','haciendo'=>'Haciendo','terminada'=>'Terminada'] as $estVal=>$estLbl): ?>
+          <form method="POST" action="<?php echo $appUrl; ?>/tareas/<?php echo $e($t['id']); ?>/estado" class="d-inline" data-change-estado>
+            <?php echo \App\Helpers\CSRF::tokenField(); ?>
+            <input type="hidden" name="estado" value="<?php echo $estVal; ?>">
+            <button type="submit"
+              class="btn btn-sm <?php echo ($t['estado'] ?? '') === $estVal ? 'btn-primary' : 'btn-outline-secondary'; ?>"
+              data-estado="<?php echo $estVal; ?>"
+              title="<?php echo $estLbl; ?>">
+              <?php echo $estLbl; ?>
+            </button>
+          </form>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+        <?php if (in_array($role, ['ADMIN','GOD'])): ?>
         <a href="<?php echo $appUrl; ?>/tareas/<?php echo $e($t['id']); ?>/editar" class="btn btn-warning btn-sm">
           <i class="bi bi-pencil me-1"></i>Editar
         </a>
@@ -58,8 +78,8 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
           data-show-reason="true">
           <i class="bi bi-trash me-1"></i>Eliminar
         </button>
+        <?php endif; ?>
       </div>
-      <?php endif; ?>
     </div>
 
     <div class="row g-3 mt-2">
@@ -123,10 +143,14 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
     <?php else: ?>
     <div class="list-group">
       <?php foreach ($t['subtareas'] as $sub): ?>
-      <div class="list-group-item <?php echo ($sub['estado']??'')==='terminada'?'list-group-item-light':''; ?>">
+      <div class="list-group-item <?php echo ($sub['estado']??'')==='terminada'?'list-group-item-light':''; ?>"
+           data-subtarea-id="<?php echo (int)$sub['id']; ?>">
         <div class="d-flex align-items-start justify-content-between gap-2">
           <div class="flex-fill">
             <span class="fw-semibold"><?php echo $e($sub['nombre']); ?></span>
+            <span class="text-muted small ms-1 assignee-name"><?php
+              echo !empty($sub['usuario_asignado_nombre']) ? $e($sub['usuario_asignado_nombre']) : '';
+            ?></span>
             <?php if($sub['descripcion']??''): ?>
             <div class="text-muted small"><?php echo $e($sub['descripcion']); ?></div>
             <?php endif; ?>
@@ -134,6 +158,17 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
           <div class="d-flex align-items-center gap-1 flex-shrink-0">
             <span class="badge badge-estado-<?php echo $e($sub['estado']); ?>"><?php echo $e($estadoLabel[$sub['estado']]??$sub['estado']); ?></span>
             <span class="badge badge-prioridad-<?php echo $e($sub['prioridad']??'media'); ?>"><?php echo ucfirst($e($sub['prioridad']??'media')); ?></span>
+            <?php if (in_array($role, ['ADMIN','GOD'], true)): ?>
+            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1"
+              title="Reasignar subtarea"
+              data-action="quick-assign"
+              data-entity-type="subtarea"
+              data-entity-id="<?php echo (int)$sub['id']; ?>"
+              data-assignee-id="<?php echo (int)($sub['usuario_asignado_id'] ?? 0); ?>"
+              data-entity-name="<?php echo $e($sub['nombre']); ?>">
+              <i class="bi bi-person-check"></i>
+            </button>
+            <?php endif; ?>
           </div>
         </div>
       </div>
@@ -168,3 +203,14 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
     ?>
   </div>
 </div>
+
+<?php // USUARIOS_ASIGNABLES payload for the quick-assign modal (subtareas) ?>
+<?php if (!empty($usuarios)): ?>
+<script nonce="<?= CSP_NONCE ?>">
+var USUARIOS_ASIGNABLES = <?php echo json_encode(array_map(function($u) {
+    return ['id' => $u['id'], 'nombre_completo' => $u['nombre_completo'], 'rol' => $u['rol'] ?? ''];
+}, $usuarios)); ?>;
+</script>
+<?php else: ?>
+<script nonce="<?= CSP_NONCE ?>">var USUARIOS_ASIGNABLES = [];</script>
+<?php endif; ?>

@@ -1,0 +1,45 @@
+# =============================================================
+#  TaskOrbit — .dockerignore
+# =============================================================
+
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# IDE / OS
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Build / vendor (no aplica todavia, pero por si se agrega composer)
+vendor
+node_modules
+
+# Storage local: NO se copia a la imagen, va por volumen
+storage/evidencias/*
+!storage/evidencias/.gitkeep
+storage/logs/*
+!storage/logs/.gitkeep
+storage/sessions/*
+!storage/sessions/.gitkeep
+
+# Archivos sensibles
+.env
+.env.local
+.env.*.local
+
+# Backups y comprimidos
+*.rar
+*.zip
+*.tar
+*.tar.gz
+*.bak
+*.sql.gz
+
+# Docs/dev artifacts
+docs/auditoria*
+*.log

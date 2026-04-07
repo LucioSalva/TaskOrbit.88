@@ -25,6 +25,33 @@ class Evidencia
         );
     }
 
+    /**
+     * Batch fetch evidencias indexadas por entidad_id, para evitar N+1.
+     * @return array<int, array<int, array>> entidad_id => [evidencia, ...]
+     */
+    public static function getByEntidades(string $tipo, array $entidadIds): array
+    {
+        if (empty($entidadIds)) return [];
+        $db = Database::getInstance();
+        $placeholders = implode(',', array_fill(0, count($entidadIds), '?'));
+        $rows = $db->fetchAll(
+            "SELECT e.id, e.tipo_entidad, e.entidad_id, e.nombre_original, e.nombre_guardado,
+                    e.ruta_archivo, e.extension, e.mime_type, e.peso_bytes, e.subido_por,
+                    e.created_at, u.nombre_completo AS subido_por_nombre
+             FROM evidencias e
+             JOIN usuarios u ON u.id = e.subido_por
+             WHERE e.tipo_entidad = ? AND e.entidad_id IN ($placeholders) AND e.deleted_at IS NULL
+             ORDER BY e.created_at DESC",
+            array_merge([$tipo], $entidadIds)
+        );
+
+        $byId = [];
+        foreach ($rows as $row) {
+            $byId[(int)$row['entidad_id']][] = $row;
+        }
+        return $byId;
+    }
+
     public static function getById(int $id): ?array
     {
         $db = Database::getInstance();

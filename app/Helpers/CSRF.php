@@ -63,8 +63,10 @@ class CSRF
                 'message' => 'La sesión expiró. Recarga la página e intenta de nuevo.',
             ]);
         } else {
-            echo '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>';
-            echo '<p>Token de seguridad inválido. <a href="javascript:history.back()">Volver</a> y recargar la página.</p>';
+            $appUrl = rtrim((string)(getenv('APP_URL') ?: ''), '/');
+            $loginUrl = htmlspecialchars($appUrl . '/login', ENT_QUOTES, 'UTF-8');
+            echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sesión expirada</title></head><body>';
+            echo '<p>Token de seguridad inválido. La sesión expiró. <a href="' . $loginUrl . '">Volver al inicio de sesión</a> y recargar la página.</p>';
             echo '</body></html>';
         }
         exit;

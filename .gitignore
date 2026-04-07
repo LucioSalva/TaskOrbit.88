@@ -1,12 +1,44 @@
+# =============================================================
+#  TaskOrbit — .gitignore
+# =============================================================
+
+# ---- Environment / secrets ----
 .env
 .env.local
 .env.*.local
+.env.laragon.bak
 
+# ---- Editor / IDE / OS ----
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ---- Claude Code local config ----
+.claude/
+
+# ---- Dependencies (not used today, here for future-proofing) ----
 /vendor/
+node_modules/
+
+# ---- Storage: code lives in git, uploads/logs do not ----
 /storage/evidencias/*
 !/storage/evidencias/.gitkeep
+!/storage/evidencias/.htaccess
+/storage/logs/*
+!/storage/logs/.gitkeep
+/storage/sessions/*
+!/storage/sessions/.gitkeep
+/storage/audit_runner.php
 
+# ---- Dev artifacts / backups ----
 /public/db-test.php
-
 *.log
-/storage/logs/
+*.rar
+*.zip
+*.tar
+*.tar.gz
+*.bak
+*.sql.gz

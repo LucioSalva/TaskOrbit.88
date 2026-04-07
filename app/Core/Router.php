@@ -84,10 +84,18 @@ class Router
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         $uri    = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
-        // Strip base path if app is in a subdirectory
-        $scriptDir = dirname($_SERVER['SCRIPT_NAME']);
-        if ($scriptDir !== '/' && str_starts_with($uri, $scriptDir)) {
-            $uri = substr($uri, strlen($scriptDir));
+        // Strip base path if app is in a subdirectory.
+        // Prefer APP_BASE_PATH env var (Docker / explicit config) since under
+        // Apache Alias the SCRIPT_NAME may not include the alias prefix.
+        $basePath = rtrim((string)(getenv('APP_BASE_PATH') ?: ''), '/');
+        if ($basePath === '') {
+            $scriptDir = dirname($_SERVER['SCRIPT_NAME'] ?? '/');
+            if ($scriptDir !== '/' && $scriptDir !== '\\' && $scriptDir !== '.') {
+                $basePath = $scriptDir;
+            }
+        }
+        if ($basePath !== '' && str_starts_with($uri, $basePath)) {
+            $uri = substr($uri, strlen($basePath));
         }
         $uri = '/' . ltrim($uri, '/');
 

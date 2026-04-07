@@ -202,10 +202,14 @@ class Usuario
         );
     }
 
+    /**
+     * Soft-disable: nunca borrar fisicamente para no romper FKs en proyectos,
+     * tareas, audit_logs, notas, etc. Marca el usuario como inactivo.
+     */
     public static function delete(int $id): bool
     {
         $db = Database::getInstance();
-        return $db->execute('DELETE FROM usuarios WHERE id = ?', [$id]);
+        return $db->execute('UPDATE usuarios SET activo = FALSE WHERE id = ?', [$id]);
     }
 
     public static function usernameExists(string $username, int $excludeId = 0): bool

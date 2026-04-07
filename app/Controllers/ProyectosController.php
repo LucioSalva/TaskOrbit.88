@@ -329,6 +329,9 @@ class ProyectosController extends Controller
         if (isset($data['nombre']) && !Validator::minLength($data['nombre'], 3)) {
             $errors[] = 'El nombre debe tener al menos 3 caracteres.';
         }
+        if (isset($data['nombre']) && !Validator::maxLength($data['nombre'], 120)) {
+            $errors[] = 'El nombre no puede superar 120 caracteres.';
+        }
         if (isset($data['descripcion']) && mb_strlen($data['descripcion']) > 2000) {
             $errors[] = 'La descripción no puede superar los 2000 caracteres.';
         }
@@ -337,6 +340,20 @@ class ProyectosController extends Controller
         }
         if (isset($data['estado']) && !Validator::isValidEstado($data['estado'])) {
             $errors[] = 'Estado inválido.';
+        }
+        if (isset($data['fecha_inicio'], $data['fecha_fin']) && $data['fecha_inicio'] && $data['fecha_fin']
+            && strtotime($data['fecha_fin']) <= strtotime($data['fecha_inicio'])) {
+            $errors[] = 'La fecha de fin debe ser posterior a la de inicio.';
+        }
+
+        // Validar reasignación: solo a usuarios reales no-GOD
+        if (isset($data['usuario_asignado_id']) && $data['usuario_asignado_id'] !== '') {
+            $assignedRole = Usuario::getRoleById((int)$data['usuario_asignado_id']);
+            if (!$assignedRole) {
+                $errors[] = 'El usuario asignado no existe.';
+            } elseif ($assignedRole === 'GOD') {
+                $errors[] = 'No se puede asignar proyectos a un usuario GOD.';
+            }
         }
 
         if (!empty($errors)) {
@@ -372,7 +389,6 @@ class ProyectosController extends Controller
     public function updateEstado(string $id): void
     {
         $this->requireAuth();
-        $this->requireRole('ADMIN', 'GOD');
         CSRF::verifyRequest();
 
         $user    = $this->currentUser();
@@ -380,6 +396,13 @@ class ProyectosController extends Controller
 
         if (!$proyecto) {
             $this->json(['ok' => false, 'message' => 'Proyecto no encontrado'], 404);
+        }
+
+        // ADMIN/GOD pueden siempre; USER solo si está asignado al proyecto.
+        $isPrivileged = in_array($user['rol'], ['ADMIN', 'GOD'], true);
+        $isAssigned   = (int)($proyecto['usuario_asignado_id'] ?? 0) === (int)$user['id'];
+        if (!$isPrivileged && !$isAssigned) {
+            $this->json(['ok' => false, 'message' => 'No tienes permiso para cambiar el estado de este proyecto.'], 403);
         }
 
         if (!Proyecto::checkAccess($proyecto, $user['id'], $user['rol'])) {

@@ -1,0 +1,109 @@
+# =============================================================
+#  TaskOrbit — Docker stack
+# =============================================================
+#  Por defecto, este compose conecta la app al PostgreSQL REAL
+#  del HOST (Laragon, Postgres nativo, etc) via host.docker.internal.
+#  El servicio postgres del compose esta deshabilitado/comentado
+#  porque el usuario ya tiene su DB con datos reales.
+#
+#  Si en algun momento quieres usar una DB en contenedor:
+#    1. Cambia DB_HOST=postgres en .env
+#    2. Descomenta el bloque "postgres" abajo
+#    3. Descomenta el bloque depends_on en el servicio web
+# =============================================================
+#  Levantar:   docker compose up -d --build
+#  Apagar:     docker compose down
+#  Logs web:   docker compose logs -f web
+# =============================================================
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: taskorbit/web:local
+    container_name: taskorbit_web
+    restart: unless-stopped
+    ports:
+      - "${HOST_HTTP_PORT:-8080}:80"
+    environment:
+      # ---- App ----
+      APP_ENV:       local
+      APP_DEBUG:     "true"
+      APP_URL:       "${APP_URL:-http://localhost:8080/taskorbit}"
+      APP_BASE_PATH: "${APP_BASE_PATH:-/taskorbit}"
+      APP_TIMEZONE:  America/Mexico_City
+      # ---- DB (apunta al Postgres del HOST via host.docker.internal) ----
+      DB_HOST:       "${DB_HOST:-host.docker.internal}"
+      DB_PORT:       "${DB_PORT:-5432}"
+      DB_NAME:       "${DB_NAME:-TaskOrbit}"
+      DB_USER:       "${DB_USER:-postgres}"
+      DB_PASSWORD:   "${DB_PASSWORD:-admin}"
+      # ---- Sesion ----
+      SESSION_NAME:     taskorbit_session
+      SESSION_LIFETIME: 7200
+    # Necesario en Linux: en Docker Desktop (Win/Mac) ya esta resuelto,
+    # pero esto lo hace portable a Linux nativo.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Bind del codigo en modo dev (cambios reflejan al instante)
+      - .:/var/www/html
+      # storage persistente y escribible por www-data
+      - taskorbit_storage:/var/www/html/storage
+    networks:
+      - taskorbit_net
+
+  # ---- Adminer: GUI de DB en http://localhost:${HOST_ADMINER_PORT:-8081} ----
+  # Conecta a host.docker.internal:5432 con user postgres / pass admin
+  adminer:
+    image: adminer:latest
+    container_name: taskorbit_adminer
+    restart: unless-stopped
+    ports:
+      - "${HOST_ADMINER_PORT:-8081}:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: host.docker.internal
+      ADMINER_DESIGN: pepa-linha
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - taskorbit_net
+
+  # =============================================================
+  #  Postgres en contenedor — DESHABILITADO
+  #  Descomenta este bloque solo si quieres una DB aislada.
+  # =============================================================
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: taskorbit_db
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${HOST_DB_PORT:-5435}:5432"
+  #   environment:
+  #     POSTGRES_DB:       "${DB_NAME:-taskorbit}"
+  #     POSTGRES_USER:     "${DB_USER:-taskorbit}"
+  #     POSTGRES_PASSWORD: "${DB_PASSWORD:-taskorbit_secret}"
+  #     TZ:                America/Mexico_City
+  #   volumes:
+  #     - taskorbit_pgdata:/var/lib/postgresql/data
+  #     - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+  #     - ./database/seeds.sql:/docker-entrypoint-initdb.d/02-seeds.sql:ro
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-taskorbit} -d ${DB_NAME:-taskorbit}"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 10
+  #   networks:
+  #     - taskorbit_net
+
+volumes:
+  taskorbit_pgdata:
+    name: taskorbit_pgdata
+  taskorbit_storage:
+    name: taskorbit_storage
+
+networks:
+  taskorbit_net:
+    name: taskorbit_net
+    driver: bridge

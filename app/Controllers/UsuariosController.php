@@ -225,17 +225,10 @@ class UsuariosController extends Controller
 
         try {
             Usuario::delete((int)$id);
-            $this->flash('success', "Usuario \"{$target['username']}\" eliminado.");
-        } catch (\PDOException $e) {
-            if ($e->getCode() === '23503') {
-                $this->flash('error', 'No se puede eliminar este usuario porque tiene proyectos, tareas o datos asociados. Desactívalo en su lugar.');
-            } else {
-                error_log('[UsuariosController::destroy] PDOException: ' . $e->getMessage());
-                $this->flash('error', 'Ocurrió un error al intentar eliminar el usuario.');
-            }
+            $this->flash('success', "Usuario \"{$target['username']}\" deshabilitado. Su historial se conserva por integridad referencial.");
         } catch (\Throwable $e) {
             error_log('[UsuariosController::destroy] Error: ' . $e->getMessage());
-            $this->flash('error', 'Ocurrió un error inesperado.');
+            $this->flash('error', 'Ocurrió un error inesperado al deshabilitar el usuario.');
         }
         $this->redirect('/admin/usuarios');
     }

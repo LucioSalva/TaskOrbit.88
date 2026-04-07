@@ -39,6 +39,7 @@ $scopeIcons  = ['personal'=>'bi-person','proyecto'=>'bi-kanban','tarea'=>'bi-lis
               <option value="personal">Personal</option>
               <option value="proyecto">De Proyecto</option>
               <option value="tarea">De Tarea</option>
+              <option value="subtarea">De Subtarea</option>
             </select>
           </div>
           <div class="col-12 col-md-4 d-none" id="nota-ref-container">
@@ -130,5 +131,6 @@ $scopeIcons  = ['personal'=>'bi-person','proyecto'=>'bi-kanban','tarea'=>'bi-lis
 <div id="notas-data"
   data-proyectos="<?php echo htmlspecialchars(json_encode(array_values(array_map(fn($p) => ['id' => $p['id'], 'nombre' => $p['nombre']], $proyectos ?? [])), JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>"
   data-tareas="<?php echo htmlspecialchars(json_encode(array_values(array_map(fn($t) => ['id' => $t['id'], 'nombre' => $t['nombre'], 'proyecto_id' => $t['proyecto_id']], $tareas ?? [])), JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>"
+  data-subtareas="<?php echo htmlspecialchars(json_encode(array_values(array_map(fn($s) => ['id' => $s['id'], 'nombre' => $s['nombre'], 'tarea_id' => $s['tarea_id']], $subtareas ?? [])), JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>"
   class="d-none"></div>
 <script src="<?php echo \App\Core\View::asset('js/notas.js'); ?>"></script>

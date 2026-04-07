@@ -40,7 +40,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Helpers\{CSRF, Validator};
-use App\Models\{Subtarea, Tarea, Proyecto, Evidencia};
+use App\Models\{Subtarea, Tarea, Proyecto, Evidencia, Usuario, Nota};
 use App\Services\{EstadoService, NotificacionService};
 
 class SubtareasController extends Controller
@@ -107,8 +107,17 @@ class SubtareasController extends Controller
             'fecha_fin'   => $fechaFin,
         ], $user['id']);
 
-        // Propagate state up: tarea -> proyecto
-        EstadoService::propagarDesdeTareaConSubtareas((int)$tareaId, $user['id']);
+        // Propagate state up: tarea -> proyecto.
+        // Wrapped in try/catch because state propagation is a best-effort
+        // recalculation; the subtask is already committed and should not be
+        // rolled back if propagation fails. This matches the graceful-degradation
+        // pattern used by DashboardController. The next cron run will reconcile.
+        try {
+            EstadoService::propagarDesdeTareaConSubtareas((int)$tareaId, $user['id']);
+        } catch (\Throwable $e) {
+            error_log('[SubtareasController::store] propagacion fallida (subtarea_id='
+                . $subtareaId . '): ' . $e->getMessage());
+        }
 
         // Notify admins when a USER creates a subtask
         if ($user['rol'] === 'USER') {
@@ -268,9 +277,14 @@ class SubtareasController extends Controller
         $data['updated_by'] = $user['id'];
         Subtarea::update((int)$id, $data);
 
-        // If estado changed, propagate up
+        // If estado changed, propagate up (best-effort).
         if (isset($data['estado'])) {
-            EstadoService::propagarDesdeSubtarea((int)$id, $user['id']);
+            try {
+                EstadoService::propagarDesdeSubtarea((int)$id, $user['id']);
+            } catch (\Throwable $e) {
+                error_log('[SubtareasController::update] propagacion fallida (subtarea_id='
+                    . (int)$id . '): ' . $e->getMessage());
+            }
         }
 
         // Notify admins when a USER updates a subtask
@@ -290,6 +304,160 @@ class SubtareasController extends Controller
         }
 
         $this->flash('success', 'Subtarea actualizada.');
+        $this->back();
+    }
+
+    /**
+     * Reassign a subtarea to a user (or unassign).
+     * AJAX-first endpoint for the quick-assign modal.
+     *
+     * Allowed roles: ADMIN, GOD (consistent with TareasController::update reassignment).
+     * Returns:
+     *   200 ok    + {ok:true, subtarea:{...}}
+     *   400 bad   + {ok:false, message}        — non-numeric usuario_asignado_id
+     *   403 deny  + {ok:false, message}        — not admin/god, or no project access
+     *   404 nf    + {ok:false, message}        — subtarea / parent missing
+     *   422 unp   + {ok:false, message}        — usuario does not exist or is GOD/inactive
+     */
+    public function assign(string $id): void
+    {
+        $this->requireAuth();
+        $this->requireRole('ADMIN', 'GOD');
+        CSRF::verifyRequest();
+
+        $user   = $this->currentUser();
+        $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']);
+
+        // ---- 404: subtarea must exist ----
+        if (!ctype_digit($id)) {
+            if ($isAjax) { $this->json(['ok' => false, 'message' => 'ID de subtarea inválido.'], 400); return; }
+            $this->flash('error', 'ID de subtarea inválido.');
+            $this->redirect('/proyectos'); return;
+        }
+        $subtarea = Subtarea::getById((int)$id);
+        if (!$subtarea) {
+            if ($isAjax) { $this->json(['ok' => false, 'message' => 'Subtarea no encontrada.'], 404); return; }
+            $this->flash('error', 'Subtarea no encontrada.');
+            $this->redirect('/proyectos'); return;
+        }
+
+        // ---- 404/403: parent tarea + proyecto must exist and be accessible ----
+        $tarea = Tarea::getById((int)($subtarea['tarea_id'] ?? 0));
+        if (!$tarea || !empty($tarea['deleted_at'])) {
+            if ($isAjax) { $this->json(['ok' => false, 'message' => 'La tarea asociada no está disponible.'], 404); return; }
+            $this->flash('error', 'La tarea asociada no está disponible.');
+            $this->redirect('/proyectos'); return;
+        }
+
+        $proyecto = Proyecto::getById((int)($tarea['proyecto_id'] ?? 0));
+        if (!$proyecto || !empty($proyecto['deleted_at'])) {
+            if ($isAjax) { $this->json(['ok' => false, 'message' => 'El proyecto asociado no está disponible.'], 404); return; }
+            $this->flash('error', 'El proyecto asociado no está disponible.');
+            $this->redirect('/proyectos'); return;
+        }
+
+        if (!Proyecto::checkAccess($proyecto, $user['id'], $user['rol'])) {
+            if ($isAjax) { $this->json(['ok' => false, 'message' => 'No tienes acceso al proyecto de esta subtarea.'], 403); return; }
+            $this->flash('error', 'No tienes acceso al proyecto de esta subtarea.');
+            $this->redirect('/proyectos'); return;
+        }
+
+        // ---- 400: input shape ----
+        $raw = $_POST['usuario_asignado_id'] ?? '';
+        $raw = is_array($raw) ? '' : trim((string)$raw);
+
+        // Empty / "0" / "" means UNASSIGN (= inherit from parent again)
+        if ($raw === '' || $raw === '0') {
+            $newAssigneeId = null;
+        } else {
+            if (!ctype_digit($raw)) {
+                if ($isAjax) { $this->json(['ok' => false, 'message' => 'usuario_asignado_id inválido.'], 400); return; }
+                $this->flash('error', 'usuario_asignado_id inválido.');
+                $this->back(); return;
+            }
+            $newAssigneeId = (int)$raw;
+        }
+
+        // ---- 422: FK existence + business rules (no GOD, must exist) ----
+        $newAssigneeUser = null;
+        if ($newAssigneeId !== null) {
+            $newAssigneeUser = Usuario::findById($newAssigneeId);
+            if (!$newAssigneeUser) {
+                if ($isAjax) { $this->json(['ok' => false, 'message' => 'El usuario asignado no existe.'], 422); return; }
+                $this->flash('error', 'El usuario asignado no existe.');
+                $this->back(); return;
+            }
+            if (empty($newAssigneeUser['activo'])) {
+                if ($isAjax) { $this->json(['ok' => false, 'message' => 'El usuario asignado está inactivo.'], 422); return; }
+                $this->flash('error', 'El usuario asignado está inactivo.');
+                $this->back(); return;
+            }
+            if (strtoupper((string)$newAssigneeUser['rol']) === 'GOD') {
+                if ($isAjax) { $this->json(['ok' => false, 'message' => 'No se puede asignar subtareas a un usuario GOD.'], 422); return; }
+                $this->flash('error', 'No se puede asignar subtareas a un usuario GOD.');
+                $this->back(); return;
+            }
+        }
+
+        // ---- Persist ----
+        $oldAssigneeId = isset($subtarea['usuario_asignado_id']) && $subtarea['usuario_asignado_id'] !== null
+            ? (int)$subtarea['usuario_asignado_id']
+            : null;
+
+        $updated = Subtarea::assign((int)$id, $newAssigneeId, (int)$user['id']);
+        if (!$updated) {
+            if ($isAjax) { $this->json(['ok' => false, 'message' => 'No se pudo actualizar la subtarea.'], 500); return; }
+            $this->flash('error', 'No se pudo actualizar la subtarea.');
+            $this->back(); return;
+        }
+
+        // ---- Side effects: notify + auto-note (only when assignee actually changed) ----
+        if ($oldAssigneeId !== $newAssigneeId) {
+            // Notify newly assigned user
+            if ($newAssigneeId && $newAssigneeUser) {
+                try {
+                    NotificacionService::dispatch(NotificacionService::TAREA_ASIGNADA, [
+                        'entity_type' => 'subtarea',
+                        'entity_id'   => (int)$id,
+                        'user_id'     => $newAssigneeId,
+                        'user_nombre' => $newAssigneeUser['nombre_completo'] ?? '',
+                        'tarea'       => $subtarea['nombre'],
+                        'proyecto'    => $proyecto['nombre'],
+                        'fecha_fin'   => !empty($subtarea['fecha_fin']) ? date('d/m/Y', strtotime((string)$subtarea['fecha_fin'])) : 'Sin fecha',
+                        'actor'       => $user['nombre_completo'],
+                    ]);
+                } catch (\Throwable $e) {
+                    error_log('[SubtareasController::assign] notify failed: ' . $e->getMessage());
+                }
+            }
+
+            // Auto-note (best effort, never block the response)
+            try {
+                $newName = $newAssigneeUser['nombre_completo'] ?? null;
+                $msg = $newName
+                    ? "Subtarea reasignada a {$newName} por {$user['nombre_completo']}."
+                    : "Subtarea desasignada (volverá a heredar responsable de la tarea/proyecto) por {$user['nombre_completo']}.";
+                Nota::createAuto('subtarea', (int)$id, $msg, (int)$user['id']);
+            } catch (\Throwable $e) {
+                error_log('[SubtareasController::assign] auto-note failed: ' . $e->getMessage());
+            }
+        }
+
+        if ($isAjax) {
+            $this->json([
+                'ok'       => true,
+                'subtarea' => [
+                    'id'                       => (int)$id,
+                    'tarea_id'                 => (int)($updated['tarea_id'] ?? $subtarea['tarea_id']),
+                    'nombre'                   => $updated['nombre'] ?? '',
+                    'usuario_asignado_id'      => $updated['usuario_asignado_id'] ?? null,
+                    'usuario_asignado_nombre'  => $updated['usuario_asignado_nombre'] ?? '',
+                ],
+            ]);
+            return;
+        }
+
+        $this->flash('success', 'Responsable de la subtarea actualizado.');
         $this->back();
     }
 
@@ -365,8 +533,14 @@ class SubtareasController extends Controller
         $oldEstado = $subtarea['estado'];
         Subtarea::updateEstado((int)$id, $estado);
 
-        // Propagate state up: tarea -> proyecto
-        $propagacion = EstadoService::propagarDesdeSubtarea((int)$id, $user['id']);
+        // Propagate state up: tarea -> proyecto (best-effort).
+        $propagacion = [];
+        try {
+            $propagacion = EstadoService::propagarDesdeSubtarea((int)$id, $user['id']);
+        } catch (\Throwable $e) {
+            error_log('[SubtareasController::updateEstado] propagacion fallida (subtarea_id='
+                . (int)$id . '): ' . $e->getMessage());
+        }
 
         // Notify admins when a USER changes subtask status
         if ($user['rol'] === 'USER' && $oldEstado !== $estado) {
@@ -438,8 +612,25 @@ class SubtareasController extends Controller
         $tareaId = (int)$subtarea['tarea_id'];
         Subtarea::softDelete((int)$id, $user['id']);
 
-        // Propagate state up after deletion
-        EstadoService::propagarDesdeTareaConSubtareas($tareaId, $user['id']);
+        // Propagate state up after deletion (best-effort: do not block the
+        // delete response if recalculation fails — the soft-delete is already
+        // committed and reconciliation happens on the next scheduler run).
+        try {
+            EstadoService::propagarDesdeTareaConSubtareas($tareaId, $user['id']);
+        } catch (\Throwable $e) {
+            error_log('[SubtareasController::destroy] propagacion fallida (subtarea_id='
+                . (int)$id . '): ' . $e->getMessage());
+        }
+
+        if ($isAjax) {
+            $this->json([
+                'ok'      => true,
+                'message' => "Subtarea \"{$subtarea['nombre']}\" eliminada.",
+                'id'      => (int)$id,
+                'tarea_id'=> $tareaId,
+            ]);
+            return;
+        }
 
         $this->flash('success', "Subtarea \"{$subtarea['nombre']}\" eliminada.");
         $this->back();

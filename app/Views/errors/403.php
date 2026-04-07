@@ -18,13 +18,19 @@ $errorMessage = $errorMessage ?? 'No tienes permiso para acceder a esta sección
     <h1 class="h3 mb-2">Acceso denegado</h1>
     <p class="text-muted mb-4"><?php echo htmlspecialchars($errorMessage); ?></p>
     <div class="d-flex gap-2 justify-content-center">
-      <a href="javascript:history.back()" class="btn btn-outline-secondary">
+      <button type="button" id="btn-go-back" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left me-1"></i>Volver
-      </a>
+      </button>
       <a href="<?php echo $appUrl; ?>/dashboard" class="btn btn-primary">
         <i class="bi bi-speedometer2 me-1"></i>Dashboard
       </a>
     </div>
   </div>
+  <script nonce="<?php echo defined('CSP_NONCE') ? CSP_NONCE : ''; ?>">
+    document.getElementById('btn-go-back')?.addEventListener('click', function () {
+      if (history.length > 1) { history.back(); }
+      else { window.location.href = <?php echo json_encode($appUrl . '/dashboard'); ?>; }
+    });
+  </script>
 </body>
 </html>

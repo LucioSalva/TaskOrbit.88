@@ -100,7 +100,7 @@ foreach ($tarByEstado as $est => $items) {
                 <button type="submit"
                   class="btn btn-xs py-0 px-1 text-2xs <?php echo $t['estado'] === $estVal ? 'btn-primary active-estado' : 'btn-outline-secondary'; ?>"
                   data-estado="<?php echo $estVal; ?>"
-                  title="<?php echo $estadosConfig[$estVal]['label']; ?>"
+                  title="<?php echo $estadosConfig[$estVal]['label']; ?>">
                   <?php echo $estLbl; ?>
                 </button>
               </form>

@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const notaProyectos = JSON.parse(dataEl.dataset.proyectos || '[]');
   const notaTareas    = JSON.parse(dataEl.dataset.tareas    || '[]');
+  const notaSubtareas = JSON.parse(dataEl.dataset.subtareas || '[]');
 
   // ---- Scope → reference dropdown ----
   function updateNotaRef() {
@@ -26,15 +27,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const scope = scopeEl.value;
 
     if (scope === 'personal') {
-      container.style.display = 'none';
+      container.classList.add('d-none');
       select.innerHTML = '<option value="">-</option>';
       return;
     }
 
-    container.style.display = '';
+    container.classList.remove('d-none');
     select.innerHTML = '<option value="">Selecciona...</option>';
 
-    const items = scope === 'proyecto' ? notaProyectos : notaTareas;
+    let items;
+    if (scope === 'proyecto') {
+      items = notaProyectos;
+    } else if (scope === 'tarea') {
+      items = notaTareas;
+    } else if (scope === 'subtarea') {
+      items = notaSubtareas;
+    } else {
+      items = [];
+    }
+
     items.forEach(item => {
       const opt       = document.createElement('option');
       opt.value       = item.id;

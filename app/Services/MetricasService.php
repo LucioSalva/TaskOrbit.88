@@ -215,8 +215,8 @@ class MetricasService
                 p.estado                            AS proyecto_estado,
                 p.prioridad,
                 p.fecha_fin                         AS proyecto_fecha_fin,
-                FALSE                               AS proyecto_en_riesgo,
-                u.nombre_completo                   AS responsable,
+                p.en_riesgo                         AS proyecto_en_riesgo,
+                COALESCE(u.nombre_completo, 'Sin asignar') AS responsable,
                 COUNT(t.id)
                     AS total_tareas,
                 COUNT(t.id) FILTER (WHERE t.estado IN ('terminada','aceptada'))

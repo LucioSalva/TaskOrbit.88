@@ -43,8 +43,29 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
         <p class="text-muted mt-2 mb-0"><?php echo $e($p['descripcion']); ?></p>
         <?php endif; ?>
       </div>
-      <?php if (in_array($role, ['ADMIN','GOD'])): ?>
-      <div class="d-flex gap-2">
+      <div class="d-flex flex-wrap gap-2">
+        <?php
+        // Estado buttons: ADMIN/GOD siempre, USER si está asignado
+        $canChangeProyectoEstado = in_array($role, ['ADMIN', 'GOD'], true)
+            || (int)($p['usuario_asignado_id'] ?? 0) === (int)($user['id'] ?? 0);
+        ?>
+        <?php if ($canChangeProyectoEstado): ?>
+        <div class="estado-btn-group btn-group btn-group-sm" role="group" aria-label="Cambiar estado del proyecto">
+          <?php foreach (['por_hacer'=>'Por hacer','haciendo'=>'Haciendo','terminada'=>'Terminada'] as $estVal=>$estLbl): ?>
+          <form method="POST" action="<?php echo $appUrl; ?>/proyectos/<?php echo $e($p['id']); ?>/estado" class="d-inline" data-change-estado>
+            <?php echo \App\Helpers\CSRF::tokenField(); ?>
+            <input type="hidden" name="estado" value="<?php echo $estVal; ?>">
+            <button type="submit"
+              class="btn btn-sm <?php echo ($p['estado'] ?? '') === $estVal ? 'btn-primary' : 'btn-outline-secondary'; ?>"
+              data-estado="<?php echo $estVal; ?>"
+              title="<?php echo $estLbl; ?>">
+              <?php echo $estLbl; ?>
+            </button>
+          </form>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+        <?php if (in_array($role, ['ADMIN','GOD'])): ?>
         <a href="<?php echo $appUrl; ?>/proyectos/<?php echo $e($p['id']); ?>/editar" class="btn btn-warning btn-sm">
           <i class="bi bi-pencil me-1"></i>Editar
         </a>
@@ -56,8 +77,8 @@ $estadoLabel = ['por_hacer'=>'Por Hacer','haciendo'=>'Haciendo','terminada'=>'Te
           data-show-reason="true">
           <i class="bi bi-trash me-1"></i>Eliminar
         </button>
+        <?php endif; ?>
       </div>
-      <?php endif; ?>
     </div>
 
     <div class="row g-3 mt-2">
